@@ -30,7 +30,7 @@ import { SellsRepository } from "@/lib/repositories/sellsRepository"
 import { CustomersRepository } from "@/lib/repositories/customersRepository"
 import { StocksRepository } from "@/lib/repositories/stocksRepository"
 import { CategoriesRepository } from "@/lib/repositories/categoriesRepository"
-import { Plus, Trash2, Search, Package, UserPlus, CreditCard, Banknote, ArrowRight, Minus, ShoppingCart, RefreshCcw, ChevronDown } from "lucide-react"
+import { Plus, Trash2, Search, Package, UserPlus, CreditCard, Banknote, ArrowRight, Minus, ShoppingCart, RefreshCcw, ChevronDown, FileText } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
@@ -84,7 +84,7 @@ export default function SellsPage() {
     sellDate: new Date().toISOString().split("T")[0],
     paymentMethod: "0",
   })
-  const [documentType, setDocumentType] = useState<"factura" | "cotizacion">("factura")
+  const [documentType, setDocumentType] = useState<"factura" | "cotizacion" | "express">("factura")
   const [globalDiscount, setGlobalDiscount] = useState<string>("")
   const [isDetailsExpanded, setIsDetailsExpanded] = useState(true)
 
@@ -457,13 +457,35 @@ export default function SellsPage() {
         )}>
 
           {/* Customer Bar */}
-          <div className="p-3 md:p-4 border-b border-gray-200 bg-white flex flex-col gap-3">
+          <div className="p-2 md:p-3 border-b border-gray-200 bg-white flex flex-col gap-2">
             {/* Row 1: Title + Clear button */}
             <div className="flex items-center justify-between">
-              <h2 className="text-base md:text-lg font-bold text-gray-800 flex items-center gap-2">
-                <ShoppingCart className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-                Facturación
-              </h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setDocumentType("factura")}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5",
+                    documentType === "factura"
+                      ? "bg-primary text-white shadow-md shadow-primary/20"
+                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                  )}
+                >
+                  <ShoppingCart className="w-3.5 h-3.5" />
+                  Facturación
+                </button>
+                <button
+                  onClick={() => setDocumentType("express")}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5",
+                    documentType === "express"
+                      ? "bg-green-600 text-white shadow-md shadow-green-600/20"
+                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                  )}
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  Factura Express
+                </button>
+              </div>
               <Button variant="ghost" size="sm" onClick={clearCart} className="text-red-500 hover:text-red-600 hover:bg-red-50 h-8 text-xs">
                 <Trash2 className="w-3 h-3 mr-1" /> Limpiar
               </Button>
@@ -516,7 +538,7 @@ export default function SellsPage() {
           </div>
 
           {/* Table Area */}
-          <div className="flex-1 overflow-auto bg-white p-3 md:p-4">
+          <div className="flex-1 overflow-auto bg-white p-2 md:p-3">
 
             {/* ===== MOBILE VIEW: Cards (hidden on md+) ===== */}
             <div className="flex flex-col gap-3 md:hidden">
@@ -580,69 +602,73 @@ export default function SellsPage() {
               <Table>
                 <TableHeader className="bg-gray-50">
                   <TableRow className="hover:bg-transparent border-gray-200">
-                    <TableHead className="text-gray-700 font-bold w-[100px]">Referencia</TableHead>
-                    <TableHead className="text-gray-700 font-bold">Descripción</TableHead>
-                    <TableHead className="text-gray-700 font-bold text-center w-[80px]">Cant.</TableHead>
-                    <TableHead className="text-gray-700 font-bold text-center w-[60px]">U.M.</TableHead>
-                    <TableHead className="text-gray-700 font-bold text-right">Precio Unitario</TableHead>
-                    <TableHead className="text-gray-700 font-bold text-center w-[100px]">% Desc.</TableHead>
-                    <TableHead className="text-gray-700 font-bold text-right">Valor Total</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
+                    <TableHead className="text-gray-700 font-bold text-[11px] py-2 px-3 w-[90px]">Ref</TableHead>
+                    <TableHead className="text-gray-700 font-bold text-[11px] py-2 px-3">Producto</TableHead>
+                    <TableHead className="text-gray-700 font-bold text-[11px] py-2 px-3 text-center w-[70px]">Cant.</TableHead>
+                    <TableHead className="text-gray-700 font-bold text-[11px] py-2 px-3 text-center w-[50px]">U.M.</TableHead>
+                    <TableHead className="text-gray-700 font-bold text-[11px] py-2 px-3 text-right">P. Unitario</TableHead>
+                    <TableHead className="text-gray-700 font-bold text-[11px] py-2 px-3 text-center w-[80px]">% Desc.</TableHead>
+                    <TableHead className="text-gray-700 font-bold text-[11px] py-2 px-3 text-right">Total</TableHead>
+                    <TableHead className="w-[40px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {selectedItems.map((item, index) => (
                     <TableRow key={`${item.stockId}-${index}`} className="hover:bg-gray-50 border-gray-200">
-                      <TableCell className="font-medium text-gray-700">{item.productCode}</TableCell>
-                      <TableCell className="text-gray-700 max-w-[200px] truncate" title={item.productName}>
+                      <TableCell className="font-medium text-gray-700 text-[11px] py-1.5 px-3">{item.productCode}</TableCell>
+                      <TableCell className="text-gray-700 text-[11px] py-1.5 px-3 max-w-[180px] truncate" title={item.productName}>
                         {item.productName}
                       </TableCell>
-                      <TableCell className="text-center">
+                      <TableCell className="text-center py-1.5 px-3">
                         <div className="flex items-center justify-center gap-1">
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => updateQuantity(index, -1)}>
+                            <Minus className="w-3 h-3" />
+                          </Button>
                           <Input
                             type="number"
-                            className="w-12 h-7 bg-gray-50 border-gray-200 text-center text-xs p-0"
+                            className="w-12 h-6 bg-gray-50 border-gray-200 text-center text-[11px] p-0"
                             value={item.quantity}
                             onChange={(e) => {
                               const val = parseInt(e.target.value) || 0
                               updateQuantity(index, val - item.quantity)
                             }}
                           />
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => updateQuantity(index, 1)}>
+                            <Plus className="w-3 h-3" />
+                          </Button>
                         </div>
                       </TableCell>
-                      <TableCell className="text-center text-xs text-gray-500">{item.unit}</TableCell>
-                      <TableCell className="text-right text-gray-700 text-sm">
+                      <TableCell className="text-center text-[11px] text-gray-500 py-1.5 px-3">{item.unit}</TableCell>
+                      <TableCell className="text-right text-gray-700 text-[11px] py-1.5 px-3">
                         ${item.price.toLocaleString()}
                       </TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center">
-                          <Input
-                            type="number"
-                            className="w-14 h-7 bg-gray-50 border-gray-200 text-center text-xs p-0"
-                            value={item.discountPercent === 0 ? "" : item.discountPercent}
-                            placeholder="0"
-                            max={100}
-                            min={0}
-                            onChange={(e) => updateDiscount(index, parseFloat(e.target.value) || 0)}
-                          />
-                        </div>
+                      <TableCell className="text-center py-1.5 px-3">
+                        <Input
+                          type="number"
+                          className="w-14 h-6 bg-gray-50 border-gray-200 text-center text-[11px] p-0"
+                          value={item.discountPercent === 0 ? "" : item.discountPercent}
+                          placeholder="0"
+                          max={100}
+                          min={0}
+                          onChange={(e) => updateDiscount(index, parseFloat(e.target.value) || 0)}
+                        />
                       </TableCell>
-                      <TableCell className="text-right font-bold text-green-600 text-sm">
+                      <TableCell className="text-right font-bold text-green-600 text-[11px] py-1.5 px-3">
                         ${item.total.toLocaleString()}
                       </TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => removeItem(index)}>
-                          <Trash2 className="w-4 h-4" />
+                      <TableCell className="py-1.5 px-2">
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => removeItem(index)}>
+                          <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       </TableCell>
                     </TableRow>
                   ))}
                   {selectedItems.length === 0 && (
                     <TableRow className="hover:bg-transparent">
-                      <TableCell colSpan={8} className="h-48 text-center text-gray-500">
+                      <TableCell colSpan={8} className="h-40 text-center text-gray-500">
                         <div className="flex flex-col items-center justify-center gap-2 opacity-50">
-                          <ShoppingCart className="w-10 h-10" />
-                          <p>No hay productos en la factura</p>
+                          <ShoppingCart className="w-8 h-8" />
+                          <p className="text-xs">Sin productos</p>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -653,7 +679,7 @@ export default function SellsPage() {
           </div>
 
           {/* Summary & Actions */}
-          <div className="p-4 bg-white border-t border-gray-200 space-y-4 shadow-sm">
+          <div className="p-2 md:p-3 bg-white border-t border-gray-200 space-y-2 shadow-sm">
 
             {/* Collapsible Header */}
             <button
@@ -681,79 +707,6 @@ export default function SellsPage() {
                   transition={{ duration: 0.3 }}
                   className="space-y-4 overflow-hidden"
                 >
-
-                  {/* Global Discount */}
-                  <div className="flex items-center gap-2 flex-wrap bg-gray-50 p-3 rounded-lg border border-gray-200">
-                    <Label className="text-xs text-gray-400 whitespace-nowrap shrink-0">Descuento global:</Label>
-                    <div className="flex items-center gap-2 flex-1">
-                      <Input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        placeholder="Ingresa %"
-                        value={globalDiscount}
-                        onChange={(e) => {
-                          const value = e.target.value
-                          setGlobalDiscount(value)
-                          const discountValue = value === "" ? 0 : parseFloat(value)
-                          if (discountValue >= 0 && discountValue <= 100) {
-                            setSelectedItems(prev => prev.map(item => ({
-                              ...item,
-                              discountPercent: discountValue,
-                              total: calculateItemTotal(item.price, item.quantity, discountValue),
-                            })))
-                          }
-                        }}
-                        className="w-24 h-8 bg-gray-100 border-gray-200 text-gray-700 text-xs focus:ring-primary/50"
-                      />
-                      <span className="text-xs text-gray-400">%</span>
-                    </div>
-                    {globalDiscount !== "" && (
-                      <button
-                        onClick={() => {
-                          setGlobalDiscount("")
-                          setSelectedItems(prev => prev.map(item => ({
-                            ...item,
-                            discountPercent: 0,
-                            total: calculateItemTotal(item.price, item.quantity, 0),
-                          })))
-                        }}
-                        className="px-3 py-1 rounded-md text-xs font-bold border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-all shrink-0"
-                      >
-                        Quitar
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Tipo de Factura */}
-                  <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                    <Label className="text-xs text-gray-400 mb-2 block">Tipo de Factura</Label>
-                    <div className="flex gap-2 bg-gray-50 p-1 rounded-lg">
-                      <button
-                        onClick={() => setDocumentType("factura")}
-                        className={cn(
-                          "flex-1 px-3 py-2 rounded-md text-xs font-bold transition-all text-white",
-                          documentType === "factura"
-                            ? "bg-primary shadow-lg shadow-primary/20"
-                            : "text-gray-500 hover:text-gray-300",
-                        )}
-                      >
-                        Factura Pago
-                      </button>
-                      <button
-                        onClick={() => setDocumentType("cotizacion")}
-                        className={cn(
-                          "flex-1 px-3 py-2 rounded-md text-xs font-bold transition-all text-white",
-                          documentType === "cotizacion"
-                            ? "bg-amber-500 shadow-lg shadow-amber-500/20"
-                            : "text-gray-400 hover:text-gray-300",
-                        )}
-                      >
-                        Cotización
-                      </button>
-                    </div>
-                  </div>
 
                   {/* Totals */}
                   <div className="bg-gray-100 rounded-xl p-3 space-y-2 border border-gray-200">
@@ -785,22 +738,9 @@ export default function SellsPage() {
               </div>
             )}
 
-            {documentType === "cotizacion" && (
-              <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-lg animate-pulse">
-                <p className="text-[10px] md:text-xs text-amber-500 font-bold text-center uppercase tracking-wider">
-                  ⚠️ APENAS SE REALICE EL PAGO DE LA TOTALIDAD SE REALIZARA EL ENVIO DE LA MERCANCIA
-                </p>
-              </div>
-            )}
-
             <Button
               size="lg"
-              className={cn(
-                "w-full font-bold h-12 rounded-xl shadow-lg transition-all",
-                documentType === "factura"
-                  ? "bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 shadow-primary/25"
-                  : "bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-amber-500/25",
-              )}
+              className="w-full font-bold h-12 rounded-xl shadow-lg transition-all bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 shadow-primary/25"
               onClick={handleCheckout}
               disabled={processing}
             >
@@ -808,7 +748,7 @@ export default function SellsPage() {
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
-                  {documentType === "factura" ? "Completar Venta" : "Generar Cotización"}
+                  {documentType === "express" ? "Generar Factura Express" : "Completar Venta"}
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </>
               )}
