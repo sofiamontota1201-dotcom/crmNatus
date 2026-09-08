@@ -67,6 +67,7 @@ const navigationSections = [
     requiredPermission: "inventory_view",
     items: [
       { name: "Proveedores", href: "/vendors", icon: Truck },
+      { name: "Cargar Mercancía", href: "/cargar-mercancia", icon: Package },
     ]
   },
   {

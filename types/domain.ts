@@ -641,3 +641,32 @@ export interface AuditLog {
   user_agent?: string
   created_at: string
 }
+
+// --- CARGA DE MERCANCÍA ---
+
+export interface MerchandiseLoad {
+  id: number
+  vendorId?: number | null
+  referenceCode?: string | null
+  notes?: string | null
+  totalItems: number
+  totalCost: number
+  status: 'pending' | 'completed' | 'cancelled'
+  createdBy?: string | null
+  createdAt: string
+  updatedAt: string
+  vendors?: { name: string }
+  items?: MerchandiseLoadItem[]
+}
+
+export interface MerchandiseLoadItem {
+  id: number
+  loadId: number
+  stockId?: number | null
+  productId: number
+  quantity: number
+  unitCost: number
+  totalCost: number
+  createdAt: string
+  products?: { product_name: string; sku?: string; barcode?: string }
+}
