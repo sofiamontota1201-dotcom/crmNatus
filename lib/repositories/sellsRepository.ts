@@ -142,6 +142,30 @@ export class SellsRepository {
     return toCamelCaseKeys<SellDetail>(data)
   }
 
+  async createDetailsBatch(details: Omit<SellDetail, 'id' | 'createdAt' | 'updatedAt' | 'products'>[]): Promise<SellDetail[]> {
+    const payloads = details.map(d => toSnakeCaseKeys(d))
+    const { data, error } = await this.client
+      .from('sell_details')
+      .insert(payloads)
+      .select('*')
+    if (error) throw error
+    return (data ?? []).map(d => toCamelCaseKeys<SellDetail>(d))
+  }
+
+  async updateDetailsBatch(updates: { id: number; input: Partial<SellDetail> }[]): Promise<void> {
+    const promises = updates.map(({ id, input }) => {
+      const payload = toSnakeCaseKeys(input)
+      return this.client
+        .from('sell_details')
+        .update(payload)
+        .eq('id', id)
+    })
+    const results = await Promise.all(promises)
+    for (const result of results) {
+      if (result.error) throw result.error
+    }
+  }
+
   async remove(id: number): Promise<void> {
     // Delete details first to avoid foreign key constraints
     const { error: detailsError } = await this.client

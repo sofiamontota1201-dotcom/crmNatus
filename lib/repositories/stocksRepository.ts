@@ -89,5 +89,17 @@ export class StocksRepository {
     }
   }
 
+  async batchUpdateQuantities(updates: { id: number; currentQuantity: number }[]): Promise<void> {
+    const res = await fetch('/api/stocks/batch-update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ updates }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }))
+      throw new Error(err.error || `Error en batch update: ${res.status}`)
+    }
+  }
+
 }
 
