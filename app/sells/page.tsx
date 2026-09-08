@@ -263,7 +263,6 @@ export default function SellsPage() {
         await sellsRepository.createDetail({
           stockId: Number(item.stockId),
           sellId: sell.id,
-          productId: stock.productId,
           soldQuantity: item.quantity,
           buyPrice: stock.buyingPrice,
           soldPrice: item.price,
