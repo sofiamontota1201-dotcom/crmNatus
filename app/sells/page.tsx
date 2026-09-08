@@ -264,19 +264,14 @@ export default function SellsPage() {
           stockId: Number(item.stockId),
           sellId: sell.id,
           productId: stock.productId,
-          categoryId: stock.categoryId,
-          vendorId: stock.vendorId,
-          chalanNo: stock.chalanNo || "",
-          sellingDate: formData.sellDate,
-          customerId: Number(formData.customerId),
           soldQuantity: item.quantity,
           buyPrice: stock.buyingPrice,
           soldPrice: item.price,
           totalBuyPrice: stock.buyingPrice * item.quantity,
           totalSoldPrice: item.total,
-          discount: item.discountPercent, // Store percent here
-          discountType: 2, // 2 = Percentage
-          discountAmount: itemDiscountAmount, // Store calculated amount
+          discount: item.discountPercent,
+          discountType: 2,
+          discountAmount: itemDiscountAmount,
         } as any)
 
         // ONLY UPDATE STOCK IF IT'S A PAID INVOICE
