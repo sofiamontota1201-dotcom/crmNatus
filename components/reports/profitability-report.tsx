@@ -6,8 +6,6 @@ import { Input } from "@/components/ui/input"
 import { supabase } from "@/lib/supabase"
 import { ReportsRepository, ProfitabilityReport, ProfitabilityItem } from "@/lib/repositories/reportsRepository"
 import { FileDown, Search, TrendingUp, BarChart3 } from "lucide-react"
-import { jsPDF } from 'jspdf'
-import autoTable from 'jspdf-autotable'
 import {
     BarChart,
     Bar,
@@ -73,8 +71,14 @@ export function ProfitabilityAnalysisReport() {
         }
     }
 
-    const exportPDF = () => {
+    const exportPDF = async () => {
         if (!reportData) return
+        const [jsPDFMod, autoTableMod] = await Promise.all([
+            import('jspdf'),
+            import('jspdf-autotable')
+        ])
+        const jsPDF = jsPDFMod.default
+        const autoTable = autoTableMod.default
         const doc = new jsPDF()
 
         doc.setFontSize(18)

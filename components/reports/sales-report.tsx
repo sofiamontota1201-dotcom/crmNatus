@@ -12,8 +12,6 @@ import {
     FileDown, Search, Calendar, DollarSign, ShoppingCart,
     TrendingUp, CheckSquare, Square, ListChecks, X, ChevronDown, ChevronUp
 } from "lucide-react"
-import { jsPDF } from 'jspdf'
-import autoTable from 'jspdf-autotable'
 import { cn } from "@/lib/utils"
 
 interface SaleItem {
@@ -249,7 +247,13 @@ export function SalesReport() {
     const clearAll = () => setSelectedIds(new Set())
 
     // ── exportar PDF Ejecutivo (solo facturas activas)
-    const exportPDF = () => {
+    const exportPDF = async () => {
+        const [jsPDFMod, autoTableMod] = await Promise.all([
+            import('jspdf'),
+            import('jspdf-autotable')
+        ])
+        const jsPDF = jsPDFMod.default
+        const autoTable = autoTableMod.default
         const doc = new jsPDF()
         
         // Colores corporativos y estilos (Azul Navy / Gris Oxford)

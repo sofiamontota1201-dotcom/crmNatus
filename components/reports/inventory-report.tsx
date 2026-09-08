@@ -10,8 +10,6 @@ import { Label } from "@/components/ui/label"
 import { supabase } from "@/lib/supabase"
 import { ReportsRepository, InventoryValuationItem } from "@/lib/repositories/reportsRepository"
 import { FileDown, Package, AlertTriangle, BarChart3, Search, CheckCircle, BookUser } from "lucide-react"
-import { jsPDF } from 'jspdf'
-import autoTable from 'jspdf-autotable'
 
 export function InventoryReport() {
     const [loading, setLoading] = useState(true)
@@ -51,7 +49,13 @@ export function InventoryReport() {
         return matchesSearch
     })
 
-    const exportPDF = () => {
+    const exportPDF = async () => {
+        const [jsPDFMod, autoTableMod] = await Promise.all([
+            import('jspdf'),
+            import('jspdf-autotable')
+        ])
+        const jsPDF = jsPDFMod.default
+        const autoTable = autoTableMod.default
         const doc = new jsPDF()
         doc.setFontSize(22)
         doc.text("Reporte de Valoración de Inventario", 105, 20, { align: "center" })
@@ -96,7 +100,13 @@ export function InventoryReport() {
         doc.save(fileName);
     }
 
-    const exportClientCatalog = () => {
+    const exportClientCatalog = async () => {
+        const [jsPDFMod, autoTableMod] = await Promise.all([
+            import('jspdf'),
+            import('jspdf-autotable')
+        ])
+        const jsPDF = jsPDFMod.default
+        const autoTable = autoTableMod.default
         const doc = new jsPDF()
 
         // ── Header ──────────────────────────────────────────────────────────────

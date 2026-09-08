@@ -19,8 +19,6 @@ import { SellsRepository } from "@/lib/repositories/sellsRepository"
 import { Search, ShoppingBag, User, Calendar, DollarSign, ChevronRight, Package, Receipt, ArrowUpDown, FileDown, CheckCircle, CheckCircle2, XCircle, CreditCard, Trash2, Percent } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
-import { jsPDF } from 'jspdf'
-import autoTable from 'jspdf-autotable'
 import { StocksRepository } from "@/lib/repositories/stocksRepository"
 import { useToast } from "@/hooks/use-toast"
 
@@ -297,9 +295,15 @@ export default function SalesHistoryPage() {
         return str.trim() + ' PESOS COLOMBIANOS';
     };
 
-    const exportInvoicePDF = (sale: any) => {
+    const exportInvoicePDF = async (sale: any) => {
         try {
             if (!sale) return
+            const [jsPDFMod, autoTableMod] = await Promise.all([
+                import('jspdf'),
+                import('jspdf-autotable')
+            ])
+            const jsPDF = jsPDFMod.default
+            const autoTable = autoTableMod.default
             const doc = new jsPDF('l', 'mm', 'a4') // Landscape
 
             const PURPLE = [34, 139, 34] as [number, number, number]; // Verde GGL
@@ -481,8 +485,10 @@ export default function SalesHistoryPage() {
 
             // Dashed Line Separator
             doc.setDrawColor(150, 150, 150);
+            // @ts-ignore - jsPDF method not in type definitions
             doc.setLineDashPattern([3, 3], 0);
             doc.line(14, yPos, 283, yPos);
+            // @ts-ignore - jsPDF method not in type definitions
             doc.setLineDashPattern([], 0); // Reset
             yPos += 5;
 

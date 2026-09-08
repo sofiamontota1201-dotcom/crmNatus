@@ -3,10 +3,21 @@
 
 import { Navigation } from "@/components/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { InventoryReport } from "@/components/reports/inventory-report"
-import { ProfitabilityAnalysisReport } from "@/components/reports/profitability-report"
-import { SalesReport } from "@/components/reports/sales-report"
-import { BarChart3, Package, ShoppingCart } from "lucide-react"
+import dynamic from "next/dynamic"
+import { BarChart3, Package, ShoppingCart, Loader2 } from "lucide-react"
+
+const ProfitabilityAnalysisReport = dynamic(
+    () => import("@/components/reports/profitability-report").then(m => ({ default: m.ProfitabilityAnalysisReport })),
+    { loading: () => <div className="flex items-center justify-center p-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div> }
+)
+const InventoryReport = dynamic(
+    () => import("@/components/reports/inventory-report").then(m => ({ default: m.InventoryReport })),
+    { loading: () => <div className="flex items-center justify-center p-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div> }
+)
+const SalesReport = dynamic(
+    () => import("@/components/reports/sales-report").then(m => ({ default: m.SalesReport })),
+    { loading: () => <div className="flex items-center justify-center p-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div> }
+)
 
 export default function ReportsPage() {
   return (

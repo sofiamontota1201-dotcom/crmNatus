@@ -31,7 +31,6 @@ import { Plus, Edit, Trash2, Package, AlertTriangle, Search, X, RefreshCcw, Tag,
 import { useToast } from "@/hooks/use-toast"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
-import * as XLSX from "xlsx-js-style"
 
 export default function StockPage() {
   const router = useRouter()
@@ -197,8 +196,9 @@ export default function StockPage() {
     setIsDialogOpen(true)
   }
 
-  const downloadExcelReport = () => {
+  const downloadExcelReport = async () => {
     try {
+      const XLSX = await import("xlsx-js-style")
       // Build rows using the original column names expected by the user
       const rows = filteredStocks.map(stock => ({
         'Referencia (Codigo)': stock.productCode || '',

@@ -13,8 +13,6 @@ import { ReportsRepository } from "@/lib/repositories/reportsRepository"
 import { supabase as supabaseLib } from "@/lib/supabase"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
-import { jsPDF } from 'jspdf'
-import autoTable from 'jspdf-autotable'
 
 const MESES = [
   { value: '0',  label: 'Enero' },
@@ -328,6 +326,12 @@ export default function SoportesPage() {
         return
       }
     }
+    const [jsPDFMod, autoTableMod] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable')
+    ])
+    const jsPDF = jsPDFMod.default
+    const autoTable = autoTableMod.default
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
     const W = 210, margin = 18
     const colores = {

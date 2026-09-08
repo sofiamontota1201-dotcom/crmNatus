@@ -137,7 +137,8 @@ export class ReportsRepository {
             .select(`
         *,
         sells!inner(created_at),
-        stock:stocks!inner(
+        stocks!inner(
+            id,
             products!inner(id, product_name, category_id),
             categories:categories(name)
         )
@@ -158,9 +159,9 @@ export class ReportsRepository {
         let totalCOGS = 0;
 
         (rawData || []).forEach((row: any) => {
-            const productId = row.stock?.products?.id;
-            const productName = row.stock?.products?.product_name || 'Unknown Product';
-            const categoryName = row.stock?.categories?.name || 'Uncategorized';
+            const productId = row.stocks?.products?.id;
+            const productName = row.stocks?.products?.product_name || 'Unknown Product';
+            const categoryName = row.stocks?.categories?.name || 'Uncategorized';
 
             const soldPrice = Number(row.sold_price) || 0;
             const buyPrice = Number(row.buy_price) || 0;

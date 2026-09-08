@@ -10,8 +10,6 @@ import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/lib/supabase"
 import { SellsRepository } from "@/lib/repositories/sellsRepository"
-import { jsPDF } from 'jspdf'
-import autoTable from 'jspdf-autotable'
 
 export default function FacturacionPage() {
   const { toast } = useToast()
@@ -134,6 +132,12 @@ export default function FacturacionPage() {
   const generateInvoiceBase64 = async (sale: any): Promise<string | null> => {
     try {
       if (!sale) return null;
+      const [jsPDFMod, autoTableMod] = await Promise.all([
+        import('jspdf'),
+        import('jspdf-autotable')
+      ])
+      const jsPDF = jsPDFMod.default
+      const autoTable = autoTableMod.default
       const doc = new jsPDF('l', 'mm', 'a4'); // Landscape
 
       const PURPLE = [34, 139, 34] as [number, number, number]; // Verde GGL
@@ -299,8 +303,10 @@ export default function FacturacionPage() {
       yPos = (lastTable ? lastTable.finalY : yPos) + 5;
 
       doc.setDrawColor(150, 150, 150);
+      // @ts-ignore - jsPDF method not in type definitions
       doc.setLineDashPattern([3, 3], 0);
       doc.line(14, yPos, 283, yPos);
+      // @ts-ignore - jsPDF method not in type definitions
       doc.setLineDashPattern([], 0);
       yPos += 5;
 
