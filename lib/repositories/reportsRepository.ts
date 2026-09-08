@@ -131,13 +131,17 @@ export class ReportsRepository {
         const totalWithoutSupport = totalGrossSales - totalWithSupport;
         const supportCoverage = totalGrossSales > 0 ? (totalWithSupport / totalGrossSales) * 100 : 0;
 
-        // 2. Obtener categorías para mapear por category_id
-        const { data: categoriesData } = await this.client
-            .from('categories')
-            .select('id, name')
+        // 2. Obtener categorías y productos para mapeo
+        const [categoriesResult, productsResult] = await Promise.all([
+            this.client.from('categories').select('id, name'),
+            this.client.from('products').select('id, product_name, category_id')
+        ])
         
         const categoryMap = new Map<number, string>();
-        (categoriesData || []).forEach((c: any) => categoryMap.set(c.id, c.name));
+        (categoriesResult.data || []).forEach((c: any) => categoryMap.set(c.id, c.name));
+        
+        const productsLookup = new Map<number, any>();
+        (productsResult.data || []).forEach((p: any) => productsLookup.set(p.id, p));
 
         // 3. Obtener detalles de ventas para costos y utilidad por producto
         let detailsQuery = this.client
@@ -145,10 +149,7 @@ export class ReportsRepository {
             .select(`
         *,
         sells!inner(created_at),
-        stocks!inner(
-            id,
-            products!inner(id, product_name, category_id)
-        )
+        stocks!inner(id, product_id)
       `)
 
         if (startDate) {
@@ -166,9 +167,11 @@ export class ReportsRepository {
         let totalCOGS = 0;
 
         (rawData || []).forEach((row: any) => {
-            const productId = row.stocks?.products?.id;
-            const productName = row.stocks?.products?.product_name || 'Unknown Product';
-            const categoryId = row.stocks?.products?.category_id;
+            const stockId = row.stocks?.id;
+            const productId = row.stocks?.product_id || row.product_id;
+            const product = productId ? productsLookup.get(productId) : null;
+            const productName = product?.product_name || 'Unknown Product';
+            const categoryId = product?.category_id;
             const categoryName = (categoryId ? categoryMap.get(categoryId) : null) || 'Uncategorized';
 
             const soldPrice = Number(row.sold_price) || 0;
