@@ -131,7 +131,15 @@ export class ReportsRepository {
         const totalWithoutSupport = totalGrossSales - totalWithSupport;
         const supportCoverage = totalGrossSales > 0 ? (totalWithSupport / totalGrossSales) * 100 : 0;
 
-        // 2. Obtener detalles de ventas para costos y utilidad por producto
+        // 2. Obtener categorías para mapear por category_id
+        const { data: categoriesData } = await this.client
+            .from('categories')
+            .select('id, name')
+        
+        const categoryMap = new Map<number, string>();
+        (categoriesData || []).forEach((c: any) => categoryMap.set(c.id, c.name));
+
+        // 3. Obtener detalles de ventas para costos y utilidad por producto
         let detailsQuery = this.client
             .from('sell_details')
             .select(`
@@ -139,8 +147,7 @@ export class ReportsRepository {
         sells!inner(created_at),
         stocks!inner(
             id,
-            products!inner(id, product_name, category_id),
-            categories:categories(name)
+            products!inner(id, product_name, category_id)
         )
       `)
 
@@ -154,14 +161,15 @@ export class ReportsRepository {
         const { data: rawData, error: detailsError } = await detailsQuery;
         if (detailsError) throw detailsError;
 
-        // 3. Process data to group by product
+        // 4. Process data to group by product
         const productMap = new Map<number, ProfitabilityItem>();
         let totalCOGS = 0;
 
         (rawData || []).forEach((row: any) => {
             const productId = row.stocks?.products?.id;
             const productName = row.stocks?.products?.product_name || 'Unknown Product';
-            const categoryName = row.stocks?.categories?.name || 'Uncategorized';
+            const categoryId = row.stocks?.products?.category_id;
+            const categoryName = (categoryId ? categoryMap.get(categoryId) : null) || 'Uncategorized';
 
             const soldPrice = Number(row.sold_price) || 0;
             const buyPrice = Number(row.buy_price) || 0;
