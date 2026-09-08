@@ -1,0 +1,21 @@
+# Exclude non-essential files from Vercel upload
+.git/
+.github/
+node_modules/
+.next/
+coverage/
+.turbo/
+.pnpm-store/
+tmp/
+**/*.log
+.env*
+.vscode/
+.idea/
+
+# Project documentation and local guides
+docs/**
+implementation_guide.pdf
+stock_delete_solution.md
+stock_display_fix_summary.md
+fix_foreign_key_violation.sql
+

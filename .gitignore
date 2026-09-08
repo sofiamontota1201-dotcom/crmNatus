@@ -1,0 +1,61 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/fix_foreign_key_violation.sql
+# next.js
+/.next/
+/out/
+
+# production
+/build
+/scratch
+/docs
+/scripts
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files
+.env*
+
+# editors and OS files
+.DS_Store
+.idea/
+.vscode/
+
+# artifacts and reports
+coverage/
+dist/
+.turbo/
+.pnpm-store/
+
+# docs and binaries
+*.pdf
+*.pem
+*.key
+*.crt
+*.pfx
+*.keystore
+*.sqlite
+*.db
+*.tar
+*.zip
+
+# Python virtual environments
+venv/
+venv_pdf/
+env/
+.venv/
+*.pyc
+__pycache__/
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
