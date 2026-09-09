@@ -28,6 +28,7 @@ interface CartItem {
     product: Product & { currentStock?: number }
     quantity: number
     unitCost: number
+    sellingPrice: number
 }
 
 export default function CargarMercanciaPage() {
@@ -159,13 +160,14 @@ export default function CargarMercanciaPage() {
             setCart(cart.map(c => c.product.id === product.id ? { ...c, quantity: c.quantity + 1 } : c))
         } else {
             const defaultCost = productPrices[product.id] || 0
-            setCart([...cart, { product, quantity: 1, unitCost: defaultCost }])
+            const defaultSell = sellingPrices[product.id] || 0
+            setCart([...cart, { product, quantity: 1, unitCost: defaultCost, sellingPrice: defaultSell }])
         }
         setSearchTerm("")
         toast({ title: "Agregado", description: `${product.productName} agregado al carrito` })
     }
 
-    const updateCartItem = (productId: number, field: 'quantity' | 'unitCost', value: number) => {
+    const updateCartItem = (productId: number, field: 'quantity' | 'unitCost' | 'sellingPrice', value: number) => {
         setCart(cart.map(c => c.product.id === productId ? { ...c, [field]: Math.max(0, value) } : c))
     }
 
@@ -176,6 +178,7 @@ export default function CargarMercanciaPage() {
     const clearCart = () => setCart([])
 
     const cartTotal = cart.reduce((sum, item) => sum + (item.quantity * item.unitCost), 0)
+    const cartTotalSelling = cart.reduce((sum, item) => sum + (item.quantity * (item.sellingPrice || 0)), 0)
     const cartItems = cart.reduce((sum, item) => sum + item.quantity, 0)
 
     const handleSubmit = async () => {
@@ -203,6 +206,7 @@ export default function CargarMercanciaPage() {
                         productId: c.product.id,
                         quantity: c.quantity,
                         unitCost: c.unitCost,
+                        sellingPrice: c.sellingPrice || 0,
                     })),
                 }),
             })
@@ -477,18 +481,12 @@ export default function CargarMercanciaPage() {
                                                 <div className="flex items-start justify-between mb-2">
                                                     <div className="min-w-0 flex-1">
                                                         <p className="text-xs font-bold text-gray-800 truncate">{item.product.productName}</p>
-                                                        <div className="flex items-center gap-2 text-[9px]">
-                                                            <span className="text-gray-500">Costo: ${item.unitCost.toLocaleString()}</span>
-                                                            {sellingPrices[item.product.id] && (
-                                                                <span className="text-blue-600 font-bold">Venta: ${sellingPrices[item.product.id].toLocaleString()}</span>
-                                                            )}
-                                                        </div>
                                                     </div>
                                                     <button onClick={() => removeFromCart(item.product.id)} className="text-red-400 hover:text-red-600 ml-2">
                                                         <Trash2 className="w-3 h-3" />
                                                     </button>
                                                 </div>
-                                                <div className="flex items-center gap-2">
+                                                <div className="grid grid-cols-3 gap-1.5 items-center">
                                                     <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
                                                         <button
                                                             onClick={() => updateCartItem(item.product.id, 'quantity', item.quantity - 1)}
@@ -516,11 +514,26 @@ export default function CargarMercanciaPage() {
                                                         value={item.unitCost || ""}
                                                         onChange={e => updateCartItem(item.product.id, 'unitCost', Number(e.target.value))}
                                                         placeholder="Costo"
-                                                        className="h-7 flex-1 text-center text-[10px] bg-gray-50 border-gray-200"
+                                                        className="h-7 text-center text-[10px] bg-gray-50 border-gray-200"
                                                     />
-                                                    <span className="text-xs font-black text-gray-800 w-20 text-right">
-                                                        ${(item.quantity * item.unitCost).toLocaleString()}
+                                                    <Input
+                                                        type="number"
+                                                        min="0"
+                                                        value={item.sellingPrice || ""}
+                                                        onChange={e => updateCartItem(item.product.id, 'sellingPrice', Number(e.target.value))}
+                                                        placeholder="Venta"
+                                                        className="h-7 text-center text-[10px] bg-blue-50 border-blue-200"
+                                                    />
+                                                </div>
+                                                <div className="flex items-center justify-between mt-1.5">
+                                                    <span className="text-[9px] text-gray-400">
+                                                        Total: <span className="font-bold text-gray-800">${(item.quantity * item.unitCost).toLocaleString()}</span>
                                                     </span>
+                                                    {item.sellingPrice > 0 && (
+                                                        <span className="text-[9px] text-blue-500">
+                                                            Venta: <span className="font-bold">${(item.quantity * item.sellingPrice).toLocaleString()}</span>
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
                                         ))}
@@ -530,8 +543,13 @@ export default function CargarMercanciaPage() {
                             {cart.length > 0 && (
                                 <div className="p-3 border-t border-gray-200 bg-gray-50 shrink-0">
                                     <div className="flex items-center justify-between mb-2">
-                                        <span className="text-xs text-gray-500">{cartItems} unidades · {cart.length} productos</span>
-                                        <span className="text-sm font-black text-green-600">${cartTotal.toLocaleString()}</span>
+                                        <span className="text-[10px] text-gray-500">{cartItems} ud · {cart.length} prod</span>
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-[10px] text-gray-500">Costo: <span className="font-bold text-gray-800">${cartTotal.toLocaleString()}</span></span>
+                                            {cartTotalSelling > 0 && (
+                                                <span className="text-[10px] text-blue-500">Venta: <span className="font-bold">${cartTotalSelling.toLocaleString()}</span></span>
+                                            )}
+                                        </div>
                                     </div>
                                     <Button
                                         onClick={handleSubmit}
