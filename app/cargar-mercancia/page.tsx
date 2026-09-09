@@ -41,6 +41,7 @@ export default function CargarMercanciaPage() {
     const [history, setHistory] = useState<MerchandiseLoad[]>([])
     const [vendorStocks, setVendorStocks] = useState<Record<number, number>>({})
     const [productPrices, setProductPrices] = useState<Record<number, number>>({})
+    const [sellingPrices, setSellingPrices] = useState<Record<number, number>>({})
 
     // Header form
     const [vendorId, setVendorId] = useState<string>("")
@@ -95,6 +96,7 @@ export default function CargarMercanciaPage() {
                 const rawProducts = productsRes.data as any[]
                 const stockMap: Record<number, number> = {}
                 const priceMap: Record<number, number> = {}
+                const sellPriceMap: Record<number, number> = {}
 
                 for (const p of rawProducts) {
                     if (p.stocks) {
@@ -102,6 +104,9 @@ export default function CargarMercanciaPage() {
                             stockMap[s.product_id] = (stockMap[s.product_id] || 0) + s.current_quantity
                             if (s.buying_price && (!priceMap[s.product_id] || s.buying_price < priceMap[s.product_id])) {
                                 priceMap[s.product_id] = s.buying_price
+                            }
+                            if (s.selling_price && (!sellPriceMap[s.product_id] || s.selling_price < sellPriceMap[s.product_id])) {
+                                sellPriceMap[s.product_id] = s.selling_price
                             }
                         }
                     }
@@ -111,6 +116,7 @@ export default function CargarMercanciaPage() {
                 setProducts(cleanProducts as any)
                 setVendorStocks(stockMap)
                 setProductPrices(priceMap)
+                setSellingPrices(sellPriceMap)
             }
 
             if (vendorsRes.data) setVendors(vendorsRes.data.map((v: any) => toCamelCaseKeys(v)) as any)
@@ -423,7 +429,11 @@ export default function CargarMercanciaPage() {
                                             )}>
                                                 {product.currentStock || 0}
                                             </span>
-                                            <Plus className="w-3 h-3 text-primary" />
+                                            {sellingPrices[product.id] ? (
+                                                <span className="text-[9px] font-bold text-blue-600">${sellingPrices[product.id].toLocaleString()}</span>
+                                            ) : (
+                                                <Plus className="w-3 h-3 text-primary" />
+                                            )}
                                         </div>
                                     </div>
                                 ))}
@@ -467,7 +477,12 @@ export default function CargarMercanciaPage() {
                                                 <div className="flex items-start justify-between mb-2">
                                                     <div className="min-w-0 flex-1">
                                                         <p className="text-xs font-bold text-gray-800 truncate">{item.product.productName}</p>
-                                                        <p className="text-[9px] text-gray-500">${item.unitCost.toLocaleString()} / ud</p>
+                                                        <div className="flex items-center gap-2 text-[9px]">
+                                                            <span className="text-gray-500">Costo: ${item.unitCost.toLocaleString()}</span>
+                                                            {sellingPrices[item.product.id] && (
+                                                                <span className="text-blue-600 font-bold">Venta: ${sellingPrices[item.product.id].toLocaleString()}</span>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                     <button onClick={() => removeFromCart(item.product.id)} className="text-red-400 hover:text-red-600 ml-2">
                                                         <Trash2 className="w-3 h-3" />
