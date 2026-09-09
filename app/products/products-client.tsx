@@ -71,11 +71,6 @@ export function ProductsClient({ initialProducts, categories, vendors }: Product
             categoryId: formData.categoryId && formData.categoryId !== "-1" ? Number.parseInt(formData.categoryId) : null,
             vendorId: formData.vendorId && formData.vendorId !== "-1" ? Number.parseInt(formData.vendorId) : null,
             status: formData.status,
-            unitOfMeasure: 'unidad',
-            isSellableRetail: true,
-            isSellableWholesale: true,
-            isService: false,
-            hasVariants: false,
         }
 
         startTransition(async () => {

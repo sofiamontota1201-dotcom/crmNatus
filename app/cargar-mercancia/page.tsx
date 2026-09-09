@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -17,9 +18,9 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog"
 import { supabase } from "@/lib/supabase"
+import { createProductAction } from "@/app/actions/products"
 import { toCamelCaseKeys } from "@/lib/utils/case"
 import type { Product, Vendor, MerchandiseLoad } from "@/types/domain"
-import { ProductsRepository } from "@/lib/repositories/productsRepository"
 import { Truck, Search, Plus, Trash2, CheckCircle, Package, DollarSign, ShoppingCart, Loader2, Clock, Eye, Filter, Check, ChevronsUpDown, X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
@@ -70,9 +71,10 @@ export default function CargarMercanciaPage() {
     const [newProductOpen, setNewProductOpen] = useState(false)
     const [newProductForm, setNewProductForm] = useState({
         productName: "",
-        sku: "",
+        details: "",
         categoryId: "",
-        unitOfMeasure: "unidad" as string,
+        vendorId: "",
+        status: 1,
     })
     const [creatingProduct, setCreatingProduct] = useState(false)
 
@@ -264,31 +266,22 @@ export default function CargarMercanciaPage() {
         }
         setCreatingProduct(true)
         try {
-            const productsRepo = new ProductsRepository(supabase)
-            const newProduct = await productsRepo.create({
+            const newProduct = await createProductAction({
                 productName: newProductForm.productName.trim(),
-                sku: newProductForm.sku.trim() || null as any,
-                barcode: null as any,
-                manufacturerCode: null as any,
-                categoryId: newProductForm.categoryId ? Number(newProductForm.categoryId) : null,
-                vendorId: vendorId && vendorId !== "none" ? Number(vendorId) : null,
-                unitOfMeasure: newProductForm.unitOfMeasure as any,
-                isSellableRetail: true,
-                isSellableWholesale: false,
-                isService: false,
-                hasVariants: false,
-                details: null,
-                image: null,
-                status: 1,
-            } as any)
+                details: newProductForm.details.trim() || null,
+                categoryId: newProductForm.categoryId && newProductForm.categoryId !== "-1" ? Number(newProductForm.categoryId) : null,
+                vendorId: newProductForm.vendorId && newProductForm.vendorId !== "-1" ? Number(newProductForm.vendorId) : null,
+                status: newProductForm.status,
+            })
 
             toast({ title: "Producto Creado", description: `${newProduct.productName} agregado al catálogo` })
             setNewProductOpen(false)
-            setNewProductForm({ productName: "", sku: "", categoryId: "", unitOfMeasure: "unidad" })
+            setNewProductForm({ productName: "", details: "", categoryId: "", vendorId: "", status: 1 })
             loadData()
         } catch (err: any) {
-            console.error(err)
-            toast({ title: "Error", description: err.message || "No se pudo crear el producto", variant: "destructive" })
+            const msg = err?.message || "No se pudo crear el producto"
+            console.error("Error creando producto:", msg, err?.code ? `[${err.code}]` : "", err?.details || "", err?.hint || "")
+            toast({ title: "Error", description: msg, variant: "destructive" })
         } finally {
             setCreatingProduct(false)
         }
@@ -755,20 +748,11 @@ export default function CargarMercanciaPage() {
                                 <Input
                                     value={newProductForm.productName}
                                     onChange={e => setNewProductForm({ ...newProductForm, productName: e.target.value })}
-                                    placeholder="Ej: Arroz 1kg"
+                                    placeholder="Ej: Arroz Premium"
                                     className="bg-gray-50 border-gray-200"
                                 />
                             </div>
                             <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1.5">
-                                    <Label className="text-xs font-bold text-gray-500 uppercase">SKU / Referencia</Label>
-                                    <Input
-                                        value={newProductForm.sku}
-                                        onChange={e => setNewProductForm({ ...newProductForm, sku: e.target.value })}
-                                        placeholder="Opcional"
-                                        className="bg-gray-50 border-gray-200"
-                                    />
-                                </div>
                                 <div className="space-y-1.5">
                                     <Label className="text-xs font-bold text-gray-500 uppercase">Categoría</Label>
                                     <Select value={newProductForm.categoryId} onValueChange={v => setNewProductForm({ ...newProductForm, categoryId: v })}>
@@ -776,26 +760,50 @@ export default function CargarMercanciaPage() {
                                             <SelectValue placeholder="Seleccionar..." />
                                         </SelectTrigger>
                                         <SelectContent className="bg-white border-gray-200">
+                                            <SelectItem value="-1">Sin categoría</SelectItem>
                                             {categories.map((cat: any) => (
                                                 <SelectItem key={cat.id} value={cat.id.toString()}>{cat.name}</SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
                                 </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs font-bold text-gray-500 uppercase">Proveedor</Label>
+                                    <Select value={newProductForm.vendorId} onValueChange={v => setNewProductForm({ ...newProductForm, vendorId: v })}>
+                                        <SelectTrigger className="bg-gray-50 border-gray-200">
+                                            <SelectValue placeholder="Seleccionar..." />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-white border-gray-200">
+                                            <SelectItem value="-1">Sin proveedor</SelectItem>
+                                            {vendors.map((v: any) => (
+                                                <SelectItem key={v.id} value={v.id.toString()}>{v.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
                             <div className="space-y-1.5">
-                                <Label className="text-xs font-bold text-gray-500 uppercase">Unidad de Medida</Label>
-                                <Select value={newProductForm.unitOfMeasure} onValueChange={v => setNewProductForm({ ...newProductForm, unitOfMeasure: v })}>
+                                <Label className="text-xs font-bold text-gray-500 uppercase">Detalles</Label>
+                                <Textarea
+                                    value={newProductForm.details}
+                                    onChange={e => setNewProductForm({ ...newProductForm, details: e.target.value })}
+                                    placeholder="Características, peso, unidades..."
+                                    rows={3}
+                                    className="bg-gray-50 border-gray-200"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-xs font-bold text-gray-500 uppercase">Estado</Label>
+                                <Select
+                                    value={newProductForm.status.toString()}
+                                    onValueChange={v => setNewProductForm({ ...newProductForm, status: Number.parseInt(v) })}
+                                >
                                     <SelectTrigger className="bg-gray-50 border-gray-200">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent className="bg-white border-gray-200">
-                                        <SelectItem value="unidad">Unidad</SelectItem>
-                                        <SelectItem value="paquete">Paquete</SelectItem>
-                                        <SelectItem value="caja">Caja</SelectItem>
-                                        <SelectItem value="metro">Metro</SelectItem>
-                                        <SelectItem value="docena">Docena</SelectItem>
-                                        <SelectItem value="par">Par</SelectItem>
+                                        <SelectItem value="1">Activo</SelectItem>
+                                        <SelectItem value="0">Inactivo</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>

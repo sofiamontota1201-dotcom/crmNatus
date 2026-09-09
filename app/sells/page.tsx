@@ -299,7 +299,8 @@ export default function SellsPage() {
       }
 
       const customer = customers.find(c => c.id.toString() === formData.customerId)
-      const { jsPDF } = await import('jspdf')
+      const jsPDFMod = await import('jspdf')
+      const jsPDF = jsPDFMod.default
       const autoTableMod = await import('jspdf-autotable')
       const autoTable = autoTableMod.default
       const doc = new jsPDF('l', 'mm', 'a4')

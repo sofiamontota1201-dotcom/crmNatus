@@ -82,16 +82,13 @@ export interface Product {
   categoryId?: number | null
   vendorId?: number | null
   productName: string
-  sku?: string
-  barcode?: string
-  manufacturerCode?: string
+  sku?: string | null
+  barcode?: string | null
   details?: string | null
-  unitOfMeasure: UnitOfMeasure
-  isSellableRetail: boolean
-  isSellableWholesale: boolean
-  isService: boolean
-  hasVariants: boolean
-  image?: string | null
+  unitType?: string | null
+  minStock?: number | null
+  idealStock?: number | null
+  costPrice?: number | null
   status: number
   createdAt: string
   updatedAt: string
