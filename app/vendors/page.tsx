@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
   DialogContent,
@@ -19,14 +20,22 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { supabase } from "@/lib/supabase"
-import type { Vendor } from "@/types/domain"
+import type { Vendor, MerchandiseLoad } from "@/types/domain"
 import { VendorsRepository } from "@/lib/repositories/vendorsRepository"
-import { Plus, Edit, Trash2, Phone, Mail, MapPin } from "lucide-react"
+import { Plus, Edit, Trash2, Phone, Mail, MapPin, Truck, DollarSign, Package } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+
+interface VendorStats {
+  vendorId: number
+  totalLoads: number
+  totalSpent: number
+  lastLoadDate: string | null
+}
 
 export default function VendorsPage() {
   const router = useRouter()
   const [vendors, setVendors] = useState<Vendor[]>([])
+  const [vendorStats, setVendorStats] = useState<Record<number, VendorStats>>({})
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
@@ -37,6 +46,9 @@ export default function VendorsPage() {
     phone: "",
     email: "",
     address: "",
+    nit: "",
+    contactPerson: "",
+    paymentTerms: "",
   })
 
   useEffect(() => {
@@ -49,8 +61,36 @@ export default function VendorsPage() {
     try {
       const list = await repository.list()
       setVendors(list)
+      await fetchVendorStats()
     } catch (error) {
       toast({ title: "Error", description: "No se pudieron cargar los proveedores", variant: "destructive" })
+    }
+  }
+
+  const fetchVendorStats = async () => {
+    try {
+      const { data: loads } = await supabase
+        .from('merchandise_loads')
+        .select('vendor_id, total_cost, created_at')
+        .not('vendor_id', 'is', null)
+
+      if (!loads) return
+
+      const stats: Record<number, VendorStats> = {}
+      for (const load of loads) {
+        const vid = load.vendor_id as number
+        if (!stats[vid]) {
+          stats[vid] = { vendorId: vid, totalLoads: 0, totalSpent: 0, lastLoadDate: null }
+        }
+        stats[vid].totalLoads++
+        stats[vid].totalSpent += load.total_cost || 0
+        if (!stats[vid].lastLoadDate || load.created_at > stats[vid].lastLoadDate) {
+          stats[vid].lastLoadDate = load.created_at
+        }
+      }
+      setVendorStats(stats)
+    } catch (e) {
+      console.error('Error fetching vendor stats:', e)
     }
   }
 
@@ -90,6 +130,9 @@ export default function VendorsPage() {
       phone: "",
       email: "",
       address: "",
+      nit: "",
+      contactPerson: "",
+      paymentTerms: "",
     })
     setEditingVendor(null)
   }
@@ -101,6 +144,9 @@ export default function VendorsPage() {
       phone: vendor.phone,
       email: vendor.email || "",
       address: vendor.address || "",
+      nit: vendor.nit || "",
+      contactPerson: vendor.contactPerson || "",
+      paymentTerms: vendor.paymentTerms || "",
     })
     setIsDialogOpen(true)
   }
@@ -159,6 +205,25 @@ export default function VendorsPage() {
                       className="bg-background"
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="nit">NIT</Label>
+                    <Input
+                      id="nit"
+                      value={formData.nit}
+                      onChange={(e) => setFormData({ ...formData, nit: e.target.value })}
+                      placeholder="900123456-7"
+                      className="bg-background"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="contactPerson">Persona de Contacto</Label>
+                    <Input
+                      id="contactPerson"
+                      value={formData.contactPerson}
+                      onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
+                      className="bg-background"
+                    />
+                  </div>
                   <div className="space-y-2 col-span-2">
                     <Label htmlFor="email">Email</Label>
                     <Input
@@ -175,6 +240,16 @@ export default function VendorsPage() {
                       id="address"
                       value={formData.address}
                       onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      className="bg-background"
+                    />
+                  </div>
+                  <div className="space-y-2 col-span-2">
+                    <Label htmlFor="paymentTerms">Términos de Pago</Label>
+                    <Input
+                      id="paymentTerms"
+                      value={formData.paymentTerms}
+                      onChange={(e) => setFormData({ ...formData, paymentTerms: e.target.value })}
+                      placeholder="Ej: Contado, 30 días, 50% anticipado"
                       className="bg-background"
                     />
                   </div>
@@ -207,7 +282,12 @@ export default function VendorsPage() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold mb-2">{vendor.name}</h3>
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="text-lg font-semibold">{vendor.name}</h3>
+                      {vendor.nit && (
+                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-mono">NIT: {vendor.nit}</span>
+                      )}
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                       <div className="flex items-center gap-2">
                         <Phone className="w-4 h-4 text-gray-500" />
@@ -226,6 +306,32 @@ export default function VendorsPage() {
                         </div>
                       )}
                     </div>
+                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
+                      {vendor.contactPerson && (
+                        <span>Contacto: <span className="text-gray-600 font-medium">{vendor.contactPerson}</span></span>
+                      )}
+                      {vendor.paymentTerms && (
+                        <span>Pago: <span className="text-gray-600 font-medium">{vendor.paymentTerms}</span></span>
+                      )}
+                    </div>
+                    {vendorStats[vendor.id] && (
+                      <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-100">
+                        <div className="flex items-center gap-1.5 text-xs">
+                          <Truck className="w-3.5 h-3.5 text-blue-500" />
+                          <span className="text-gray-500">{vendorStats[vendor.id].totalLoads} cargas</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-xs">
+                          <DollarSign className="w-3.5 h-3.5 text-green-500" />
+                          <span className="font-bold text-green-600">${vendorStats[vendor.id].totalSpent.toLocaleString()}</span>
+                        </div>
+                        {vendorStats[vendor.id].lastLoadDate && (
+                          <div className="flex items-center gap-1.5 text-xs">
+                            <Package className="w-3.5 h-3.5 text-gray-400" />
+                            <span className="text-gray-400">Última: {new Date(vendorStats[vendor.id].lastLoadDate!).toLocaleDateString('es-CO')}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={() => openEditDialog(vendor)}>

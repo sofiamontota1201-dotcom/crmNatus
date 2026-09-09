@@ -8,7 +8,7 @@ export class ProductsRepository {
   async list(): Promise<Product[]> {
     const { data, error } = await this.client
       .from('products')
-      .select(`*, categories(name), vendors(name), stocks(current_quantity)`) // include stock info
+      .select(`*, categories(name), vendors(name), stocks(current_quantity, buying_price, selling_price)`) // include stock info
       .order('created_at', { ascending: false })
     if (error) throw error
     return (data ?? []).map((row) => toCamelCaseKeys<Product>(row))

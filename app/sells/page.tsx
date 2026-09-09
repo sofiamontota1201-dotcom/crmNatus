@@ -31,7 +31,7 @@ import { SellsRepository } from "@/lib/repositories/sellsRepository"
 import { CustomersRepository } from "@/lib/repositories/customersRepository"
 import { StocksRepository } from "@/lib/repositories/stocksRepository"
 import { CategoriesRepository } from "@/lib/repositories/categoriesRepository"
-import { Plus, Trash2, Search, Package, UserPlus, CreditCard, Banknote, ArrowRight, Minus, ShoppingCart, RefreshCcw, ChevronDown, FileText } from "lucide-react"
+import { Plus, Trash2, Search, Package, UserPlus, CreditCard, Banknote, Minus, ShoppingCart, RefreshCcw, ChevronDown, FileText, Receipt } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
@@ -79,20 +79,23 @@ export default function SellsPage() {
   const [activeTab, setActiveTab] = useState<'products' | 'cart'>('products')
 
   // Cart & Form State
-  const [selectedItems, setSelectedItems] = useState<SellItem[]>([])
-  const [formData, setFormData] = useState({
-    customerId: "",
-    sellDate: new Date().toISOString().split("T")[0],
-    paymentMethod: "0",
+  const [selectedItems, setSelectedItems] = useState<SellItem[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("natus_cart")
+      return saved ? JSON.parse(saved) : []
+    }
+    return []
   })
-  const [documentType, setDocumentType] = useState<"factura" | "cotizacion" | "express">("factura")
+  const [formData, setFormData] = useState(() => {
+    return {
+      customerId: "",
+      sellDate: new Date().toISOString().split("T")[0],
+      paymentMethod: "0",
+    }
+  })
+  const [documentType, setDocumentType] = useState<"express">("express")
   const [globalDiscount, setGlobalDiscount] = useState<string>("")
   const [isDetailsExpanded, setIsDetailsExpanded] = useState(true)
-
-  // Today's Sales
-  const [todaySales, setTodaySales] = useState<any[]>([])
-  const [loadingToday, setLoadingToday] = useState(false)
-  const [todaySummary, setTodaySummary] = useState({ totalDay: 0 })
 
   // Modals
   const [isNewCustomerOpen, setIsNewCustomerOpen] = useState(false)
@@ -110,6 +113,11 @@ export default function SellsPage() {
   const stocksRepository = new StocksRepository(supabase)
   const categoriesRepository = new CategoriesRepository(supabase)
 
+  // --- SAVE CART TO LOCALSTORAGE ---
+  useEffect(() => {
+    localStorage.setItem("natus_cart", JSON.stringify(selectedItems))
+  }, [selectedItems])
+
   // --- INITIALIZATION ---
   useEffect(() => {
     let mounted = true
@@ -126,15 +134,14 @@ export default function SellsPage() {
       try {
         const [c, s, cat] = await Promise.all([
           customersRepository.listActive(),
-          stocksRepository.listWithRelations(),
+          stocksRepository.listForPOS(),
           categoriesRepository.listActive()
         ])
         if (mounted) {
           setCustomers(c)
-          setStocks(s.filter((item) => (item.currentQuantity ?? 0) > 0 && item.status === 1))
+          setStocks(s)
           setCategories(cat)
           setLoading(false)
-          fetchTodaySales()
         }
       } catch (err) {
         console.error("Error loading data:", err)
@@ -145,35 +152,6 @@ export default function SellsPage() {
 
     return () => { mounted = false }
   }, [router])
-
-  // --- TODAY'S SALES ---
-  const fetchTodaySales = async () => {
-    setLoadingToday(true)
-    try {
-      const today = new Date().toISOString().split('T')[0]
-      const { data, error } = await supabase
-        .from('sells')
-        .select('id, total_amount, customer_name, created_at')
-        .gte('created_at', today)
-        .lt('created_at', new Date(Date.now() + 86400000).toISOString().split('T')[0])
-        .order('id', { ascending: false })
-
-      if (error) throw error
-
-      const sales = (data ?? []).map((s: any) => ({
-        id: s.id,
-        totalAmount: s.total_amount,
-        customerName: s.customer_name || 'Consumidor final',
-      }))
-
-      setTodaySales(sales)
-      setTodaySummary({ totalDay: sales.reduce((sum: number, s: any) => sum + (s.totalAmount || 0), 0) })
-    } catch (err) {
-      console.error('Error fetching today sales:', err)
-    } finally {
-      setLoadingToday(false)
-    }
-  }
 
   // --- CART ACTIONS ---
   const calculateItemTotal = (price: number, qty: number, discountPercent: number) => {
@@ -254,7 +232,7 @@ export default function SellsPage() {
   const clearCart = () => {
     setSelectedItems([])
     setFormData(prev => ({ ...prev, customerId: "" }))
-    setGlobalDiscount("")
+    localStorage.removeItem("natus_cart")
   }
 
   // --- CALCULATIONS ---
@@ -267,76 +245,6 @@ export default function SellsPage() {
   const subtotalAfterDiscount = subtotal - totalDiscount
   const total = subtotalAfterDiscount
   const globalDiscountPercent = parseFloat(globalDiscount) || 0
-
-  // --- CHECKOUT LOGIC ---
-  const handleCheckout = async () => {
-    if (selectedItems.length === 0) return toast({ title: "Carrito vacío", description: "Agrega productos antes de cobrar", variant: "destructive" })
-    if (!formData.customerId) return toast({ title: "Cliente requerido", description: "Selecciona un cliente para la factura", variant: "destructive" })
-
-    setProcessing(true)
-    try {
-      // 1. Create Sell
-      const sellData = {
-        customerId: Number.parseInt(formData.customerId),
-        branchId: 1,
-        totalAmount: total,
-        paidAmount: total,
-        sellDate: formData.sellDate,
-        discountAmount: totalDiscount,
-        paymentMethod: Number.parseInt(formData.paymentMethod),
-        paymentStatus: documentType === "factura" ? 1 : 0,
-      }
-
-      const sell = await sellsRepository.create(sellData as any)
-
-      // 2. Create Details & Update Stock (Only if it's a real sale/factura)
-      for (const item of selectedItems) {
-        const stock = stocks.find((s) => s.id.toString() === item.stockId)
-        if (!stock) continue
-
-        const itemDiscountAmount = item.price * item.quantity - item.total
-
-        await sellsRepository.createDetail({
-          stockId: Number(item.stockId),
-          sellId: sell.id,
-          soldQuantity: item.quantity,
-          buyPrice: stock.buyingPrice,
-          soldPrice: item.price,
-          totalBuyPrice: stock.buyingPrice * item.quantity,
-          totalSoldPrice: item.total,
-          discount: item.discountPercent,
-          discountType: 2,
-          discountAmount: itemDiscountAmount,
-        } as any)
-
-        // ONLY UPDATE STOCK IF IT'S A PAID INVOICE
-        if (documentType === "factura") {
-          const newQty = stock.currentQuantity - item.quantity
-          await stocksRepository.update(stock.id, { currentQuantity: newQty } as any)
-        }
-      }
-
-      // 2. Register sale details
-      const customerName = customers.find((c) => c.id.toString() === formData.customerId)?.customerName
-      const pMethodName = PAYMENT_METHODS.find((m) => m.id === formData.paymentMethod)?.name
-
-      toast({
-        title: documentType === "factura" ? "¡Venta Exitosa!" : "¡Cotización Generada!",
-        description: `${documentType === "factura" ? "Factura" : "Cotización"} #${sell.id} guardada.`,
-      })
-      clearCart()
-
-      // Refresh stocks
-      const updatedStocks = await stocksRepository.listWithRelations()
-      setStocks(updatedStocks.filter(s => (s.currentQuantity ?? 0) > 0 && s.status === 1))
-
-    } catch (error) {
-      console.error(error)
-      toast({ title: "Error en la venta", description: "No se pudo procesar la transacción", variant: "destructive" })
-    } finally {
-      setProcessing(false)
-    }
-  }
 
   // --- EXPRESS CHECKOUT ---
   const [expressModalOpen, setExpressModalOpen] = useState(false)
@@ -366,7 +274,7 @@ export default function SellsPage() {
         sellDate: formData.sellDate,
         discountAmount: totalDiscount,
         paymentMethod: Number.parseInt(expressPaymentMethod),
-        paymentStatus: 1,
+        paymentStatus: 0,  // Pendiente - se marca pagada en Cerrar Caja
       }
       const sell = await sellsRepository.create(sellData as any)
 
@@ -433,12 +341,59 @@ export default function SellsPage() {
 
       toast({ title: "¡Factura Express!", description: `Venta #${sell.id} generada` })
       clearCart()
-      fetchTodaySales()
-      const updatedStocks = await stocksRepository.listWithRelations()
+      const updatedStocks = await stocksRepository.listForPOS()
       setStocks(updatedStocks.filter(s => (s.currentQuantity ?? 0) > 0 && s.status === 1))
     } catch (error) {
       console.error(error)
       toast({ title: "Error", description: "No se pudo generar la factura", variant: "destructive" })
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  // --- CARGAR FACTURA (sin PDF) ---
+  const handleCargarFactura = async () => {
+    setExpressModalOpen(false)
+    setProcessing(true)
+    try {
+      const sellData = {
+        customerId: Number.parseInt(formData.customerId),
+        branchId: 1,
+        totalAmount: total,
+        paidAmount: total,
+        sellDate: formData.sellDate,
+        discountAmount: totalDiscount,
+        paymentMethod: Number.parseInt(expressPaymentMethod),
+        paymentStatus: 0,
+      }
+      const sell = await sellsRepository.create(sellData as any)
+
+      for (const item of selectedItems) {
+        const stock = stocks.find((s) => s.id.toString() === item.stockId)
+        if (!stock) continue
+        const itemDiscountAmount = item.price * item.quantity - item.total
+        await sellsRepository.createDetail({
+          stockId: Number(item.stockId),
+          sellId: sell.id,
+          soldQuantity: item.quantity,
+          buyPrice: stock.buyingPrice,
+          soldPrice: item.price,
+          totalBuyPrice: stock.buyingPrice * item.quantity,
+          totalSoldPrice: item.total,
+          discount: item.discountPercent,
+          discountType: 2,
+          discountAmount: itemDiscountAmount,
+        } as any)
+        await stocksRepository.update(stock.id, { currentQuantity: stock.currentQuantity - item.quantity } as any)
+      }
+
+      toast({ title: "Venta Cargada", description: `Venta #${sell.id} cargada al historial. Pendiente de facturación.` })
+      clearCart()
+      const updatedStocks = await stocksRepository.listForPOS()
+      setStocks(updatedStocks.filter(s => (s.currentQuantity ?? 0) > 0 && s.status === 1))
+    } catch (error) {
+      console.error(error)
+      toast({ title: "Error", description: "No se pudo cargar la venta", variant: "destructive" })
     } finally {
       setProcessing(false)
     }
@@ -602,31 +557,9 @@ export default function SellsPage() {
           <div className="p-2 md:p-3 border-b border-gray-200 bg-white flex flex-col gap-2">
             {/* Row 1: Title + Clear button */}
             <div className="flex items-center justify-between">
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setDocumentType("factura")}
-                  className={cn(
-                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5",
-                    documentType === "factura"
-                      ? "bg-primary text-white shadow-md shadow-primary/20"
-                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                  )}
-                >
-                  <ShoppingCart className="w-3.5 h-3.5" />
-                  Facturación
-                </button>
-                <button
-                  onClick={() => setDocumentType("express")}
-                  className={cn(
-                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5",
-                    documentType === "express"
-                      ? "bg-green-600 text-white shadow-md shadow-green-600/20"
-                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                  )}
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  Factura Express
-                </button>
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-green-600" />
+                <span className="text-sm font-bold text-gray-800">Factura Express</span>
               </div>
               <Button variant="ghost" size="sm" onClick={clearCart} className="text-red-500 hover:text-red-600 hover:bg-red-50 h-8 text-xs">
                 <Trash2 className="w-3 h-3 mr-1" /> Limpiar
@@ -901,65 +834,38 @@ export default function SellsPage() {
               </div>
             </div>
 
-            {/* Facturación Button */}
+            {/* Cargar Factura Button - SECUNDARIO */}
             <Button
               size="lg"
-              className="w-full font-bold h-11 rounded-xl shadow-lg transition-all bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 shadow-primary/25"
-              onClick={handleCheckout}
-              disabled={processing || selectedItems.length === 0}
+              variant="outline"
+              className="w-full font-bold h-11 rounded-xl border-2 border-primary/30 text-primary hover:bg-primary hover:text-white transition-all"
+              onClick={() => {
+                if (selectedItems.length === 0) { toast({ title: "Carrito vacío", description: "Agrega productos", variant: "destructive" }); return }
+                if (!formData.customerId) { toast({ title: "Cliente requerido", description: "Selecciona un cliente", variant: "destructive" }); return }
+                handleCargarFactura()
+              }}
+              disabled={processing || selectedItems.length === 0 || !formData.customerId}
+            >
+              <Receipt className="w-5 h-5 mr-2" />
+              Cargar Factura
+            </Button>
+
+            {/* Factura Express Button - PRINCIPAL */}
+            <Button
+              size="lg"
+              className="w-full font-bold h-11 rounded-xl shadow-lg transition-all bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-green-500/25"
+              onClick={handleExpressCheckout}
+              disabled={processing || selectedItems.length === 0 || !formData.customerId}
             >
               {processing ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
-                  Completar Venta
-                  <ArrowRight className="w-5 h-5 ml-2" />
+                  <FileText className="w-5 h-5 mr-2" />
+                  Factura Express
                 </>
               )}
             </Button>
-
-            {/* Factura Express Button */}
-            <Button
-              size="lg"
-              variant="outline"
-              className="w-full font-bold h-11 rounded-xl border-2 border-green-500 text-green-600 hover:bg-green-50 transition-all"
-              onClick={handleExpressCheckout}
-              disabled={processing || selectedItems.length === 0 || !formData.customerId}
-            >
-              <FileText className="w-4 h-4 mr-2" />
-              Factura Express
-            </Button>
-
-            {/* Today's Sales History */}
-            <div className="mt-2">
-              <div className="flex items-center justify-between mb-1.5">
-                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Historial del Día</p>
-                <button onClick={fetchTodaySales} className="text-[10px] text-primary hover:underline">Actualizar</button>
-              </div>
-              <div className="max-h-32 overflow-y-auto space-y-1">
-                {loadingToday ? (
-                  <p className="text-center text-gray-400 text-[10px] py-2">Cargando...</p>
-                ) : todaySales.length === 0 ? (
-                  <p className="text-center text-gray-400 text-[10px] py-2">Sin ventas hoy</p>
-                ) : (
-                  todaySales.map(sale => (
-                    <div key={sale.id} className="flex justify-between items-center py-1.5 px-2 bg-gray-50 rounded text-[11px] border border-gray-100">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-gray-600">#{sale.id}</span>
-                        <span className="text-gray-400 truncate max-w-[100px]">{sale.customerName}</span>
-                      </div>
-                      <span className="font-bold text-green-600">${sale.totalAmount.toLocaleString()}</span>
-                    </div>
-                  ))
-                )}
-              </div>
-              {todaySales.length > 0 && (
-                <div className="flex justify-between items-center mt-1.5 pt-1.5 border-t border-gray-200">
-                  <span className="text-[10px] text-gray-400">{todaySales.length} ventas</span>
-                  <span className="text-[10px] font-bold text-green-600">${todaySummary.totalDay.toLocaleString()}</span>
-                </div>
-              )}
-            </div>
           </div>
         </div>
       </main>

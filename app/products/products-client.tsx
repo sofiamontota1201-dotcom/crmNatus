@@ -20,9 +20,9 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog"
 import type { Product, Category, Vendor } from "@/types/domain"
-import { Plus, Edit, Trash2, Search, Package, Tag, Factory, ShoppingBag, FolderOpen, PowerOff, Power, Box } from "lucide-react"
+import { Plus, Edit, Trash2, Search, Package, Tag, Factory, ShoppingBag, FolderOpen, PowerOff, Power, Box, DollarSign, TrendingUp, Check, X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { createProductAction, updateProductAction, deleteProductAction } from "@/app/actions/products"
+import { createProductAction, updateProductAction, deleteProductAction, updateProductSellingPriceAction } from "@/app/actions/products"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 
@@ -40,6 +40,8 @@ export function ProductsClient({ initialProducts, categories, vendors }: Product
     const [searchTerm, setSearchTerm] = useState("")
     const [selectedCategory, setSelectedCategory] = useState<string>("all")
     const [selectedVendor, setSelectedVendor] = useState<string>("all")
+    const [stockFilter, setStockFilter] = useState<string>("all")
+    const [editingSellingPrice, setEditingSellingPrice] = useState<{ productId: number; price: string } | null>(null)
     const { toast } = useToast()
     const [isPending, startTransition] = useTransition()
 
@@ -125,6 +127,31 @@ export function ProductsClient({ initialProducts, categories, vendors }: Product
         }
     }
 
+    const handleSaveSellingPrice = async (productId: number) => {
+        if (!editingSellingPrice?.price) return
+        const price = parseFloat(editingSellingPrice.price)
+        if (isNaN(price) || price <= 0) {
+            toast({ title: "Precio inválido", description: "Ingresa un precio mayor a 0.", variant: "destructive" })
+            return
+        }
+        startTransition(async () => {
+            try {
+                await updateProductSellingPriceAction(productId, price)
+                setProducts(prev => prev.map(p => {
+                    if (p.id !== productId) return p
+                    return {
+                        ...p,
+                        stocks: p.stocks?.map(s => ({ ...s, sellingPrice: price }))
+                    }
+                }))
+                setEditingSellingPrice(null)
+                toast({ title: "Precio actualizado", description: "Precio de venta guardado correctamente." })
+            } catch (error) {
+                toast({ title: "Error", description: "No se pudo actualizar el precio.", variant: "destructive" })
+            }
+        })
+    }
+
     const resetForm = () => {
         setFormData({
             productName: "",
@@ -154,7 +181,11 @@ export function ProductsClient({ initialProducts, categories, vendors }: Product
             (product.details && product.details.toLowerCase().includes(searchTerm.toLowerCase()))
         const matchesCategory = selectedCategory === "all" || product.categoryId?.toString() === selectedCategory
         const matchesVendor = selectedVendor === "all" || product.vendorId?.toString() === selectedVendor
-        return matchesSearch && matchesCategory && matchesVendor
+        const totalStock = product.stocks?.reduce((acc, s) => acc + s.currentQuantity, 0) || 0
+        const matchesStock = stockFilter === "all"
+            || (stockFilter === "with" && totalStock > 0)
+            || (stockFilter === "without" && totalStock === 0)
+        return matchesSearch && matchesCategory && matchesVendor && matchesStock
     })
 
     return (
@@ -298,7 +329,7 @@ export function ProductsClient({ initialProducts, categories, vendors }: Product
 
                 {/* Filtros */}
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-8 p-4 rounded-2xl bg-white border border-gray-200">
-                    <div className="md:col-span-6 relative">
+                    <div className="md:col-span-4 relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
                         <Input
                             placeholder="Buscar producto..."
@@ -307,7 +338,7 @@ export function ProductsClient({ initialProducts, categories, vendors }: Product
                             className="pl-10 bg-gray-50 border-gray-200 text-gray-800 focus:ring-primary/50"
                         />
                     </div>
-                    <div className="md:col-span-3">
+                    <div className="md:col-span-2">
                         <Select value={selectedCategory} onValueChange={setSelectedCategory}>
                             <SelectTrigger className="bg-gray-50 border-gray-200 text-gray-800">
                                 <SelectValue placeholder="Categoría" />
@@ -322,7 +353,7 @@ export function ProductsClient({ initialProducts, categories, vendors }: Product
                             </SelectContent>
                         </Select>
                     </div>
-                    <div className="md:col-span-3">
+                    <div className="md:col-span-2">
                         <Select value={selectedVendor} onValueChange={setSelectedVendor}>
                             <SelectTrigger className="bg-gray-50 border-gray-200 text-gray-800">
                                 <SelectValue placeholder="Proveedor" />
@@ -336,6 +367,23 @@ export function ProductsClient({ initialProducts, categories, vendors }: Product
                                 ))}
                             </SelectContent>
                         </Select>
+                    </div>
+                    <div className="md:col-span-2">
+                        <Select value={stockFilter} onValueChange={setStockFilter}>
+                            <SelectTrigger className="bg-gray-50 border-gray-200 text-gray-800">
+                                <SelectValue placeholder="Stock" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-white border-gray-200 text-gray-800">
+                                <SelectItem value="all">Todos</SelectItem>
+                                <SelectItem value="with">Con stock</SelectItem>
+                                <SelectItem value="without">Sin stock</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="md:col-span-2 flex items-center">
+                        <Badge variant="outline" className="text-gray-500 border-gray-200">
+                            {filteredProducts.length} producto{filteredProducts.length !== 1 ? 's' : ''}
+                        </Badge>
                     </div>
                 </div>
 
@@ -388,6 +436,61 @@ export function ProductsClient({ initialProducts, categories, vendors }: Product
                                                     {product.stocks?.reduce((acc, s) => acc + s.currentQuantity, 0) || 0}
                                                 </span>
                                             </div>
+
+                                            {(() => {
+                                                const stocks = product.stocks || []
+                                                const avgBuying = stocks.length ? stocks.reduce((acc, s) => acc + s.buyingPrice, 0) / stocks.length : 0
+                                                const avgSelling = stocks.length ? stocks.reduce((acc, s) => acc + s.sellingPrice, 0) / stocks.length : 0
+                                                return (
+                                                    <>
+                                                        <div className="flex items-center justify-between bg-emerald-50 p-2 rounded-lg border border-emerald-100">
+                                                            <div className="flex items-center gap-2">
+                                                                <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
+                                                                <span className="text-[10px] uppercase font-bold text-gray-400">Precio Compra</span>
+                                                            </div>
+                                                            <span className="font-mono font-bold text-sm text-emerald-700">
+                                                                {avgBuying > 0 ? `Q${avgBuying.toFixed(2)}` : <span className="text-gray-300 text-xs">Sin precio</span>}
+                                                            </span>
+                                                        </div>
+
+                                                        <div className="flex items-center justify-between bg-blue-50 p-2 rounded-lg border border-blue-100">
+                                                            <div className="flex items-center gap-2">
+                                                                <TrendingUp className="w-3.5 h-3.5 text-blue-600" />
+                                                                <span className="text-[10px] uppercase font-bold text-gray-400">Precio Venta</span>
+                                                            </div>
+                                                            {editingSellingPrice?.productId === product.id ? (
+                                                                <div className="flex items-center gap-1">
+                                                                    <Input
+                                                                        type="number"
+                                                                        step="0.01"
+                                                                        min="0"
+                                                                        value={editingSellingPrice.price}
+                                                                        onChange={(e) => setEditingSellingPrice({ ...editingSellingPrice, price: e.target.value })}
+                                                                        className="h-6 w-20 text-xs font-mono p-1 bg-white border-blue-300"
+                                                                        autoFocus
+                                                                        onKeyDown={(e) => { if (e.key === 'Enter') handleSaveSellingPrice(product.id) }}
+                                                                        disabled={isPending}
+                                                                    />
+                                                                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-green-600 hover:bg-green-100" onClick={() => handleSaveSellingPrice(product.id)} disabled={isPending}>
+                                                                        <Check className="w-3 h-3" />
+                                                                    </Button>
+                                                                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-gray-400 hover:bg-gray-100" onClick={() => setEditingSellingPrice(null)}>
+                                                                        <X className="w-3 h-3" />
+                                                                    </Button>
+                                                                </div>
+                                                            ) : avgSelling > 0 ? (
+                                                                <span className="font-mono font-bold text-sm text-blue-700 cursor-pointer hover:text-blue-900" onClick={() => setEditingSellingPrice({ productId: product.id, price: avgSelling.toFixed(2) })} title="Click para editar">
+                                                                    Q{avgSelling.toFixed(2)}
+                                                                </span>
+                                                            ) : (
+                                                                <Button variant="ghost" size="sm" className="h-6 text-[10px] text-blue-600 hover:bg-blue-100 px-2" onClick={() => setEditingSellingPrice({ productId: product.id, price: "" })}>
+                                                                    + Colocar
+                                                                </Button>
+                                                            )}
+                                                        </div>
+                                                    </>
+                                                )
+                                            })()}
 
                                             <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 p-2 rounded-lg">
                                                 <Tag className="w-3 h-3 text-primary" />

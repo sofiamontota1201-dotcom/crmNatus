@@ -97,7 +97,7 @@ export interface Product {
   updatedAt: string
   categories?: ProductCategoryRef
   vendors?: StockVendorRef
-  stocks?: { currentQuantity: number }[]
+  stocks?: { currentQuantity: number; buyingPrice: number; sellingPrice: number }[]
 }
 
 export type UnitOfMeasure = 'unidad' | 'paquete' | 'caja' | 'metro' | 'pliego' | 'rolo' | 'docena' | 'par'
@@ -355,7 +355,7 @@ export interface Sell {
   customers?: Customer
 }
 
-export type SellPaymentStatus = 0 | 1 | 2 // 0=cotizacion, 1=pagada, 2=credito_parcial
+export type SellPaymentStatus = 0 | 1 | 2 | 3 // 0=pendiente(express), 1=pagada, 2=credito_parcial, 3=anulada(devuelta)
 
 export interface SellDetail {
   id: number
@@ -655,7 +655,7 @@ export interface MerchandiseLoad {
   createdBy?: string | null
   createdAt: string
   updatedAt: string
-  vendors?: { name: string }
+  vendors?: { name: string; phone?: string; nit?: string }
   items?: MerchandiseLoadItem[]
 }
 

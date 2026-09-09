@@ -33,3 +33,16 @@ export async function deleteProductAction(id: number) {
     await repository.remove(id)
     revalidatePath('/products')
 }
+
+export async function updateProductSellingPriceAction(productId: number, sellingPrice: number) {
+    const adminClient = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SECRET_KEY!
+    )
+    const { error } = await adminClient
+        .from('stocks')
+        .update({ selling_price: sellingPrice })
+        .eq('product_id', productId)
+    if (error) throw error
+    revalidatePath('/products')
+}

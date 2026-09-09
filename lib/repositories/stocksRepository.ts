@@ -40,6 +40,21 @@ export class StocksRepository {
     return filterDataByPermissions(stocks, user.id, permissions)
   }
 
+  // Versión ligera para POS - solo lo necesario, sin JOINs pesados
+  async listForPOS(): Promise<Stock[]> {
+    const { data, error } = await this.client
+      .from('stocks')
+      .select(`
+        id, product_code, current_quantity, buying_price, selling_price, status, category_id,
+        products:products(product_name)
+      `)
+      .eq('status', 1)
+      .gt('current_quantity', 0)
+      .order('id', { ascending: false })
+    if (error) throw error
+    return (data ?? []).map((row) => toCamelCaseKeys<Stock>(row))
+  }
+
   async create(input: Omit<Stock, 'id' | 'createdAt' | 'updatedAt' | 'products' | 'vendors' | 'categories'>): Promise<Stock> {
     const payload = toSnakeCaseKeys(input)
 
