@@ -24,6 +24,7 @@ import { CustomersRepository } from "@/lib/repositories/customersRepository"
 import { Search, ShoppingBag, User, Calendar, DollarSign, ChevronRight, Package, Receipt, ArrowUpDown, FileDown, CheckCircle, CheckCircle2, XCircle, Trash2, Percent, Plus, Minus, ShoppingCart, X } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
+import { parseLocalDate, todayLocalISO } from "@/lib/utils/date"
 import { useToast } from "@/hooks/use-toast"
 
 interface CartItem {
@@ -41,7 +42,7 @@ export default function SalesHistoryPage() {
     const [sales, setSales] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState("")
-    const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0])
+    const [selectedDate, setSelectedDate] = useState(() => todayLocalISO())
     const [selectedSale, setSelectedSale] = useState<any>(null)
     const [loadingDetails, setLoadingDetails] = useState(false)
 
@@ -463,18 +464,21 @@ export default function SalesHistoryPage() {
     }
 
     const filteredSales = sales.filter(sale => {
-        const saleDate = new Date(sale.sellDate || sale.createdAt).toISOString().split('T')[0]
+        const rawDate = sale.sellDate || sale.createdAt
+        const saleDate = typeof rawDate === 'string' ? rawDate.split('T')[0] : new Date(rawDate).toLocaleDateString('en-CA')
         const matchesDate = saleDate === selectedDate
         const matchesSearch = (sale.customers?.customerName || "Consumidor Final").toLowerCase().includes(searchTerm.toLowerCase()) ||
             String(sale.id).includes(searchTerm)
         return matchesDate && matchesSearch
     })
 
-    const pendingSalesForDate = sales.filter(s =>
-        s.paymentStatus === 0 &&
-        s.paymentStatus !== 3 &&
-        new Date(s.sellDate || s.createdAt).toISOString().split('T')[0] === selectedDate
-    )
+    const pendingSalesForDate = sales.filter(s => {
+        const rawDate = s.sellDate || s.createdAt
+        const saleDate = typeof rawDate === 'string' ? rawDate.split('T')[0] : new Date(rawDate).toLocaleDateString('en-CA')
+        return s.paymentStatus === 0 &&
+            s.paymentStatus !== 3 &&
+            saleDate === selectedDate
+    })
 
     const pendingTotal = pendingSalesForDate.reduce((sum: number, s: any) => sum + (s.totalAmount || 0), 0)
 
@@ -703,7 +707,7 @@ export default function SalesHistoryPage() {
             doc.setFont("helvetica", "bold");
             doc.text("Fecha Expedición", 165, rightY);
             doc.setFont("helvetica", "normal");
-            doc.text(new Date(sale.sellDate || sale.createdAt).toLocaleDateString(), 230, rightY);
+            doc.text(parseLocalDate(sale.sellDate || sale.createdAt).toLocaleDateString(), 230, rightY);
             rightY += 6;
 
             // Highlighted Date
@@ -713,7 +717,7 @@ export default function SalesHistoryPage() {
             doc.setTextColor(255, 255, 255);
             doc.setFont("helvetica", "bold");
             doc.text(sale.paymentStatus === 0 ? "Vigencia de Cotización" : "Fecha Vencimiento", 165, rightY);
-            doc.text(new Date(sale.sellDate || sale.createdAt).toLocaleDateString(), 230, rightY); // Assuming same day for now
+            doc.text(parseLocalDate(sale.sellDate || sale.createdAt).toLocaleDateString(), 230, rightY); // Assuming same day for now
             doc.setTextColor(0, 0, 0);
             rightY += 6;
 
@@ -883,7 +887,7 @@ export default function SalesHistoryPage() {
 
 
             // Save
-            const dStr = new Date(sale.sellDate || sale.createdAt || new Date());
+            const dStr = parseLocalDate(sale.sellDate || sale.createdAt || new Date());
             const dateStr = `${String(dStr.getDate()).padStart(2, '0')}-${String(dStr.getMonth() + 1).padStart(2, '0')}-${dStr.getFullYear()}`;
             const clientName = (sale.customers?.customerName || "Cliente").replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\u00C0-\u00FF]/g, '');
             const prefix = sale.paymentStatus === 0 ? "Cotizacion" : "Factura";
@@ -1034,7 +1038,7 @@ export default function SalesHistoryPage() {
                                                     <div className="flex items-center gap-4 text-sm text-gray-500">
                                                         <div className="flex items-center gap-1.5">
                                                             <Calendar className="w-3.5 h-3.5" />
-                                                            {new Date(sale.sellDate || sale.createdAt).toLocaleDateString()}
+                                                            {parseLocalDate(sale.sellDate || sale.createdAt).toLocaleDateString()}
                                                         </div>
                                                         <div className="flex items-center gap-1.5 truncate">
                                                             <User className="w-3.5 h-3.5" />
@@ -1113,7 +1117,7 @@ export default function SalesHistoryPage() {
                                             </DialogTitle>
                                             <DialogDescription className="text-gray-500 mt-1 flex items-center gap-2">
                                                 <Calendar className="w-4 h-4" />
-                                                Emitido el {new Date(selectedSale.sellDate || selectedSale.createdAt).toLocaleDateString()}
+                                                Emitido el {parseLocalDate(selectedSale.sellDate || selectedSale.createdAt).toLocaleDateString()}
                                             </DialogDescription>
                                         </div>
                                         <div className="text-right">

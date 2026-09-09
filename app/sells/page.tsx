@@ -36,6 +36,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
+import { todayLocalISO } from "@/lib/utils/date"
 
 // --- TYPES ---
 interface SellItem {
@@ -89,7 +90,7 @@ export default function SellsPage() {
   const [formData, setFormData] = useState(() => {
     return {
       customerId: "",
-      sellDate: new Date().toISOString().split("T")[0],
+      sellDate: todayLocalISO(),
       paymentMethod: "0",
     }
   })
