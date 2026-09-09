@@ -32,7 +32,6 @@ export async function POST(request: NextRequest) {
         const totalItems = body.items.reduce((sum, item) => sum + item.quantity, 0)
         const totalCost = body.items.reduce((sum, item) => sum + (item.quantity * item.unitCost), 0)
 
-        // 1. Create the load record
         const { data: load, error: loadError } = await adminClient
             .from('merchandise_loads')
             .insert({
@@ -49,14 +48,10 @@ export async function POST(request: NextRequest) {
 
         if (loadError) throw loadError
 
-        // 2. Process each item: update stock and create load item records
-        const stockUpdates: { stockId: number; newQty: number }[] = []
-
         for (const item of body.items) {
             let stockId = item.stockId
 
             if (stockId) {
-                // Product already has a stock batch - get current quantity
                 const { data: stock } = await adminClient
                     .from('stocks')
                     .select('id, current_quantity, stock_quantity')
@@ -72,11 +67,8 @@ export async function POST(request: NextRequest) {
                             stock_quantity: stock.stock_quantity + item.quantity,
                         })
                         .eq('id', stockId)
-
-                    stockUpdates.push({ stockId, newQty })
                 }
             } else {
-                // No stock batch - create new one
                 const productCode = `STOCK-${Date.now().toString().slice(-8)}`
                 const chalanNo = `CH-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Date.now().toString().slice(-4)}`
 
@@ -91,7 +83,7 @@ export async function POST(request: NextRequest) {
                         selling_price: Math.round(item.unitCost * 1.13),
                         stock_quantity: item.quantity,
                         current_quantity: item.quantity,
-                        minimum_stock: 5,
+
                         status: 1,
                     })
                     .select('id')
@@ -101,7 +93,6 @@ export async function POST(request: NextRequest) {
                 stockId = newStock.id
             }
 
-            // Create load item record
             await adminClient
                 .from('merchandise_load_items')
                 .insert({
@@ -127,13 +118,16 @@ export async function POST(request: NextRequest) {
     }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
     try {
-        const { data, error } = await adminClient
+        const { searchParams } = new URL(request.url)
+        const vendorId = searchParams.get('vendor_id')
+
+        let query = adminClient
             .from('merchandise_loads')
             .select(`
                 *,
-                vendors:vendors(name),
+                vendors:vendors(name, phone),
                 items:merchandise_load_items(
                     *,
                     products:products(product_name, sku, barcode)
@@ -141,8 +135,99 @@ export async function GET() {
             `)
             .order('id', { ascending: false })
 
+        if (vendorId) {
+            query = query.eq('vendor_id', Number(vendorId))
+        }
+
+        const { data, error } = await query
+
         if (error) throw error
         return NextResponse.json(data)
+    } catch (err: any) {
+        return NextResponse.json({ error: err.message }, { status: 500 })
+    }
+}
+
+export async function PUT(request: NextRequest) {
+    try {
+        const body = await request.json()
+        const { id, status, notes } = body
+
+        if (!id) {
+            return NextResponse.json({ error: 'ID de carga requerido' }, { status: 400 })
+        }
+
+        const updateData: Record<string, any> = {}
+        if (status) updateData.status = status
+        if (notes !== undefined) updateData.notes = notes
+        updateData.updated_at = new Date().toISOString()
+
+        const { data, error } = await adminClient
+            .from('merchandise_loads')
+            .update(updateData)
+            .eq('id', id)
+            .select('id')
+            .single()
+
+        if (error) throw error
+        return NextResponse.json({ success: true, id: data.id })
+    } catch (err: any) {
+        return NextResponse.json({ error: err.message }, { status: 500 })
+    }
+}
+
+export async function DELETE(request: NextRequest) {
+    try {
+        const { searchParams } = new URL(request.url)
+        const id = searchParams.get('id')
+
+        if (!id) {
+            return NextResponse.json({ error: 'ID de carga requerido' }, { status: 400 })
+        }
+
+        const { data: items, error: itemsError } = await adminClient
+            .from('merchandise_load_items')
+            .select('stock_id, quantity')
+            .eq('load_id', Number(id))
+
+        if (itemsError) throw itemsError
+
+        if (items && items.length > 0) {
+            for (const item of items) {
+                if (item.stock_id) {
+                    const { data: stock } = await adminClient
+                        .from('stocks')
+                        .select('current_quantity, stock_quantity')
+                        .eq('id', item.stock_id)
+                        .single()
+
+                    if (stock) {
+                        const newCurrent = Math.max(0, stock.current_quantity - item.quantity)
+                        const newStock = Math.max(0, stock.stock_quantity - item.quantity)
+                        await adminClient
+                            .from('stocks')
+                            .update({
+                                current_quantity: newCurrent,
+                                stock_quantity: newStock,
+                            })
+                            .eq('id', item.stock_id)
+                    }
+                }
+            }
+        }
+
+        await adminClient
+            .from('merchandise_load_items')
+            .delete()
+            .eq('load_id', Number(id))
+
+        const { error } = await adminClient
+            .from('merchandise_loads')
+            .delete()
+            .eq('id', Number(id))
+
+        if (error) throw error
+        return NextResponse.json({ success: true })
     } catch (err: any) {
         return NextResponse.json({ error: err.message }, { status: 500 })
     }
