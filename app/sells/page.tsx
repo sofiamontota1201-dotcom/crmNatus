@@ -11,6 +11,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -88,6 +89,11 @@ export default function SellsPage() {
   const [globalDiscount, setGlobalDiscount] = useState<string>("")
   const [isDetailsExpanded, setIsDetailsExpanded] = useState(true)
 
+  // Today's Sales
+  const [todaySales, setTodaySales] = useState<any[]>([])
+  const [loadingToday, setLoadingToday] = useState(false)
+  const [todaySummary, setTodaySummary] = useState({ totalDay: 0 })
+
   // Modals
   const [isNewCustomerOpen, setIsNewCustomerOpen] = useState(false)
   const [newCustomerForm, setNewCustomerForm] = useState({
@@ -128,6 +134,7 @@ export default function SellsPage() {
           setStocks(s.filter((item) => (item.currentQuantity ?? 0) > 0 && item.status === 1))
           setCategories(cat)
           setLoading(false)
+          fetchTodaySales()
         }
       } catch (err) {
         console.error("Error loading data:", err)
@@ -138,6 +145,35 @@ export default function SellsPage() {
 
     return () => { mounted = false }
   }, [router])
+
+  // --- TODAY'S SALES ---
+  const fetchTodaySales = async () => {
+    setLoadingToday(true)
+    try {
+      const today = new Date().toISOString().split('T')[0]
+      const { data, error } = await supabase
+        .from('sells')
+        .select('id, total_amount, customer_name, created_at')
+        .gte('created_at', today)
+        .lt('created_at', new Date(Date.now() + 86400000).toISOString().split('T')[0])
+        .order('id', { ascending: false })
+
+      if (error) throw error
+
+      const sales = (data ?? []).map((s: any) => ({
+        id: s.id,
+        totalAmount: s.total_amount,
+        customerName: s.customer_name || 'Consumidor final',
+      }))
+
+      setTodaySales(sales)
+      setTodaySummary({ totalDay: sales.reduce((sum: number, s: any) => sum + (s.totalAmount || 0), 0) })
+    } catch (err) {
+      console.error('Error fetching today sales:', err)
+    } finally {
+      setLoadingToday(false)
+    }
+  }
 
   // --- CART ACTIONS ---
   const calculateItemTotal = (price: number, qty: number, discountPercent: number) => {
@@ -297,6 +333,112 @@ export default function SellsPage() {
     } catch (error) {
       console.error(error)
       toast({ title: "Error en la venta", description: "No se pudo procesar la transacción", variant: "destructive" })
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  // --- EXPRESS CHECKOUT ---
+  const [expressModalOpen, setExpressModalOpen] = useState(false)
+  const [expressPaymentMethod, setExpressPaymentMethod] = useState("0")
+
+  const handleExpressCheckout = () => {
+    if (selectedItems.length === 0) {
+      toast({ title: "Carrito vacío", description: "Agrega productos", variant: "destructive" })
+      return
+    }
+    if (!formData.customerId) {
+      toast({ title: "Cliente requerido", description: "Selecciona un cliente", variant: "destructive" })
+      return
+    }
+    setExpressModalOpen(true)
+  }
+
+  const confirmExpressSale = async () => {
+    setExpressModalOpen(false)
+    setProcessing(true)
+    try {
+      const sellData = {
+        customerId: Number.parseInt(formData.customerId),
+        branchId: 1,
+        totalAmount: total,
+        paidAmount: total,
+        sellDate: formData.sellDate,
+        discountAmount: totalDiscount,
+        paymentMethod: Number.parseInt(expressPaymentMethod),
+        paymentStatus: 1,
+      }
+      const sell = await sellsRepository.create(sellData as any)
+
+      for (const item of selectedItems) {
+        const stock = stocks.find((s) => s.id.toString() === item.stockId)
+        if (!stock) continue
+        const itemDiscountAmount = item.price * item.quantity - item.total
+        await sellsRepository.createDetail({
+          stockId: Number(item.stockId),
+          sellId: sell.id,
+          soldQuantity: item.quantity,
+          buyPrice: stock.buyingPrice,
+          soldPrice: item.price,
+          totalBuyPrice: stock.buyingPrice * item.quantity,
+          totalSoldPrice: item.total,
+          discount: item.discountPercent,
+          discountType: 2,
+          discountAmount: itemDiscountAmount,
+        } as any)
+        await stocksRepository.update(stock.id, { currentQuantity: stock.currentQuantity - item.quantity } as any)
+      }
+
+      const customer = customers.find(c => c.id.toString() === formData.customerId)
+      const { jsPDF } = await import('jspdf')
+      const autoTableMod = await import('jspdf-autotable')
+      const autoTable = autoTableMod.default
+      const doc = new jsPDF('l', 'mm', 'a4')
+      const GREEN = [34, 139, 34] as [number, number, number]
+
+      doc.setFillColor(...GREEN)
+      doc.rect(0, 0, 297, 35, 'F')
+      doc.setTextColor(255, 255, 255)
+      doc.setFontSize(18)
+      doc.setFont('helvetica', 'bold')
+      doc.text('FACTURA EXPRESS', 148.5, 15, { align: 'center' })
+      doc.setFontSize(10)
+      doc.text(`Venta #${sell.id} - ${new Date().toLocaleDateString('es-CO')}`, 148.5, 25, { align: 'center' })
+
+      doc.setTextColor(40, 40, 40)
+      doc.setFont('helvetica', 'bold')
+      doc.text('Cliente:', 14, 48)
+      doc.setFont('helvetica', 'normal')
+      doc.text(customer?.customerName || 'Consumidor Final', 40, 48)
+      const payLabel = expressPaymentMethod === "0" ? 'Efectivo' : expressPaymentMethod === "1" ? 'Tarjeta' : 'Transferencia'
+      doc.setFont('helvetica', 'bold')
+      doc.text('Pago:', 180, 48)
+      doc.setFont('helvetica', 'normal')
+      doc.text(payLabel, 200, 48)
+
+      autoTable(doc, {
+        head: [['#', 'Producto', 'Cant.', 'P. Unitario', 'Total']],
+        body: selectedItems.map((item, i) => [(i+1).toString(), item.productName, item.quantity.toString(), `$${item.price.toLocaleString()}`, `$${item.total.toLocaleString()}`]),
+        startY: 65,
+        styles: { fontSize: 9, cellPadding: 4 },
+        headStyles: { fillColor: GREEN, textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [245, 250, 245] },
+      })
+
+      const lastY = (doc as any).lastAutoTable.finalY + 10
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
+      doc.text(`TOTAL: $${total.toLocaleString()}`, 283, lastY, { align: 'right' })
+      doc.save(`Factura_Express_${sell.id}.pdf`)
+
+      toast({ title: "¡Factura Express!", description: `Venta #${sell.id} generada` })
+      clearCart()
+      fetchTodaySales()
+      const updatedStocks = await stocksRepository.listWithRelations()
+      setStocks(updatedStocks.filter(s => (s.currentQuantity ?? 0) > 0 && s.status === 1))
+    } catch (error) {
+      console.error(error)
+      toast({ title: "Error", description: "No se pudo generar la factura", variant: "destructive" })
     } finally {
       setProcessing(false)
     }
@@ -534,6 +676,66 @@ export default function SellsPage() {
                   </div>
                 </DialogContent>
               </Dialog>
+
+              {/* Express Invoice Modal */}
+              <Dialog open={expressModalOpen} onOpenChange={setExpressModalOpen}>
+                <DialogContent className="bg-white border-gray-200 text-gray-800 max-w-md">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-green-600" />
+                      Factura Express
+                    </DialogTitle>
+                  </DialogHeader>
+
+                  <div className="space-y-3">
+                    <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                      <p className="text-xs text-gray-500 mb-1">Cliente</p>
+                      <p className="text-sm font-bold text-gray-800">
+                        {customers.find(c => c.id.toString() === formData.customerId)?.customerName || 'Consumidor Final'}
+                      </p>
+                    </div>
+
+                    <div className="max-h-40 overflow-y-auto space-y-1">
+                      {selectedItems.map((item, i) => (
+                        <div key={i} className="flex justify-between items-center text-xs py-1.5 px-2 bg-gray-50 rounded">
+                          <span className="text-gray-700 truncate flex-1">{item.productName}</span>
+                          <span className="text-gray-500 mx-2">{item.quantity}x</span>
+                          <span className="font-bold text-gray-800">${item.total.toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-gray-500">Método de pago</Label>
+                      <Select value={expressPaymentMethod} onValueChange={setExpressPaymentMethod}>
+                        <SelectTrigger className="bg-gray-50 border-gray-200 h-9 text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white border-gray-200">
+                          <SelectItem value="0">Efectivo</SelectItem>
+                          <SelectItem value="1">Tarjeta</SelectItem>
+                          <SelectItem value="2">Transferencia</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                      <span className="text-sm font-bold text-gray-800">TOTAL</span>
+                      <span className="text-lg font-black text-green-600">${total.toLocaleString()}</span>
+                    </div>
+                  </div>
+
+                  <DialogFooter className="gap-2">
+                    <Button variant="ghost" onClick={() => setExpressModalOpen(false)} className="text-gray-500">
+                      Cancelar
+                    </Button>
+                    <Button onClick={confirmExpressSale} className="bg-green-600 hover:bg-green-700 text-white font-bold">
+                      <FileText className="w-4 h-4 mr-2" />
+                      Confirmar + PDF
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
 
@@ -681,78 +883,83 @@ export default function SellsPage() {
           {/* Summary & Actions */}
           <div className="p-2 md:p-3 bg-white border-t border-gray-200 space-y-2 shadow-sm">
 
-            {/* Collapsible Header */}
-            <button
-              onClick={() => setIsDetailsExpanded(!isDetailsExpanded)}
-              className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-white/5 transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-gray-800 text-sm md:text-base flex items-center gap-2">
-                  ⚙️ Detalles & Totales
-                </span>
+            {/* Totals */}
+            <div className="bg-gray-100 rounded-xl p-3 space-y-2 border border-gray-200">
+              <div className="flex justify-between w-full text-sm text-gray-400">
+                <span>Subtotal</span>
+                <span>${subtotal.toLocaleString()}</span>
               </div>
-              <ChevronDown className={cn(
-                "w-5 h-5 text-gray-400 transition-transform duration-300",
-                isDetailsExpanded && "rotate-180"
-              )} />
-            </button>
-
-            {/* Collapsible Content */}
-            <AnimatePresence>
-              {isDetailsExpanded && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="space-y-4 overflow-hidden"
-                >
-
-                  {/* Totals */}
-                  <div className="bg-gray-100 rounded-xl p-3 space-y-2 border border-gray-200">
-                    <div className="flex justify-between w-full text-sm text-gray-400">
-                      <span>Subtotal</span>
-                      <span>${subtotal.toLocaleString()}</span>
-                    </div>
-                    {totalDiscount > 0 && (
-                      <div className="flex justify-between w-full text-sm text-yellow-400">
-                        <span>Descuento{globalDiscountPercent > 0 ? ` (${globalDiscountPercent}%)` : ""}</span>
-                        <span>- ${totalDiscount.toLocaleString()}</span>
-                      </div>
-                    )}
-                    <div className="flex flex-wrap justify-between w-full gap-1 text-lg md:text-2xl font-bold text-gray-800 pt-2 border-t border-gray-200">
-                      <span className="text-base md:text-xl">Total a Pagar</span>
-                      <span className="text-green-400">${total.toLocaleString()}</span>
-                    </div>
-                  </div>
-
-                </motion.div>
+              {totalDiscount > 0 && (
+                <div className="flex justify-between w-full text-sm text-yellow-400">
+                  <span>Descuento</span>
+                  <span>- ${totalDiscount.toLocaleString()}</span>
+                </div>
               )}
-            </AnimatePresence>
-
-            {/* Quick Total Summary (Always visible when collapsed) */}
-            {!isDetailsExpanded && (
-              <div className="bg-primary/10 border border-primary/20 rounded-lg p-2 text-center">
-                <p className="text-[10px] text-gray-400">Total a Pagar</p>
-                <p className="text-lg font-bold text-green-400">${total.toLocaleString()}</p>
+              <div className="flex flex-wrap justify-between w-full gap-1 text-lg md:text-2xl font-bold text-gray-800 pt-2 border-t border-gray-200">
+                <span className="text-base md:text-xl">Total</span>
+                <span className="text-green-600">${total.toLocaleString()}</span>
               </div>
-            )}
+            </div>
 
+            {/* Facturación Button */}
             <Button
               size="lg"
-              className="w-full font-bold h-12 rounded-xl shadow-lg transition-all bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 shadow-primary/25"
+              className="w-full font-bold h-11 rounded-xl shadow-lg transition-all bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 shadow-primary/25"
               onClick={handleCheckout}
-              disabled={processing}
+              disabled={processing || selectedItems.length === 0}
             >
               {processing ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
-                  {documentType === "express" ? "Generar Factura Express" : "Completar Venta"}
+                  Completar Venta
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </>
               )}
             </Button>
+
+            {/* Factura Express Button */}
+            <Button
+              size="lg"
+              variant="outline"
+              className="w-full font-bold h-11 rounded-xl border-2 border-green-500 text-green-600 hover:bg-green-50 transition-all"
+              onClick={handleExpressCheckout}
+              disabled={processing || selectedItems.length === 0 || !formData.customerId}
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              Factura Express
+            </Button>
+
+            {/* Today's Sales History */}
+            <div className="mt-2">
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Historial del Día</p>
+                <button onClick={fetchTodaySales} className="text-[10px] text-primary hover:underline">Actualizar</button>
+              </div>
+              <div className="max-h-32 overflow-y-auto space-y-1">
+                {loadingToday ? (
+                  <p className="text-center text-gray-400 text-[10px] py-2">Cargando...</p>
+                ) : todaySales.length === 0 ? (
+                  <p className="text-center text-gray-400 text-[10px] py-2">Sin ventas hoy</p>
+                ) : (
+                  todaySales.map(sale => (
+                    <div key={sale.id} className="flex justify-between items-center py-1.5 px-2 bg-gray-50 rounded text-[11px] border border-gray-100">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-gray-600">#{sale.id}</span>
+                        <span className="text-gray-400 truncate max-w-[100px]">{sale.customerName}</span>
+                      </div>
+                      <span className="font-bold text-green-600">${sale.totalAmount.toLocaleString()}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+              {todaySales.length > 0 && (
+                <div className="flex justify-between items-center mt-1.5 pt-1.5 border-t border-gray-200">
+                  <span className="text-[10px] text-gray-400">{todaySales.length} ventas</span>
+                  <span className="text-[10px] font-bold text-green-600">${todaySummary.totalDay.toLocaleString()}</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </main>
