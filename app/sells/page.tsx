@@ -278,6 +278,21 @@ export default function SellsPage() {
     setExpressModalOpen(false)
     setProcessing(true)
     try {
+      // Validar stock de todos los productos ANTES de crear la venta
+      for (const item of selectedItems) {
+        const stock = stocks.find((s) => s.id.toString() === item.stockId)
+        if (!stock) {
+          toast({ title: "Producto no disponible", description: `"${item.productName}" ya no tiene stock. Elimínalo del carrito.`, variant: "destructive" })
+          setProcessing(false)
+          return
+        }
+        if ((stock.currentQuantity ?? 0) < item.quantity) {
+          toast({ title: "Stock insuficiente", description: `"${item.productName}" solo tiene ${stock.currentQuantity} unidades.`, variant: "destructive" })
+          setProcessing(false)
+          return
+        }
+      }
+
       const sellData = {
         customerId: Number.parseInt(formData.customerId),
         branchId: 1,
@@ -369,6 +384,21 @@ export default function SellsPage() {
     setExpressModalOpen(false)
     setProcessing(true)
     try {
+      // Validar stock de todos los productos ANTES de crear la venta
+      for (const item of selectedItems) {
+        const stock = stocks.find((s) => s.id.toString() === item.stockId)
+        if (!stock) {
+          toast({ title: "Producto no disponible", description: `"${item.productName}" ya no tiene stock. Elimínalo del carrito.`, variant: "destructive" })
+          setProcessing(false)
+          return
+        }
+        if ((stock.currentQuantity ?? 0) < item.quantity) {
+          toast({ title: "Stock insuficiente", description: `"${item.productName}" solo tiene ${stock.currentQuantity} unidades.`, variant: "destructive" })
+          setProcessing(false)
+          return
+        }
+      }
+
       const sellData = {
         customerId: Number.parseInt(formData.customerId),
         branchId: 1,
@@ -513,12 +543,15 @@ export default function SellsPage() {
           {/* Product Grid */}
           <div className="flex-1 overflow-y-auto scrollbar-thin pb-4">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-              {filteredStocks.map((stock) => (
+              {filteredStocks.map((stock) => {
+                const isOutOfStock = (stock.currentQuantity ?? 0) <= 0
+                return (
                 <motion.div
                   key={stock.id}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={isOutOfStock ? {} : { scale: 1.02 }}
+                  whileTap={isOutOfStock ? {} : { scale: 0.98 }}
                   onClick={() => {
+                    if (isOutOfStock) return
                     addProductToCart(stock);
                     const { dismiss } = toast({
                       title: "✓ Producto agregado",
@@ -527,29 +560,53 @@ export default function SellsPage() {
                     })
                     setTimeout(dismiss, 3000)
                   }}
-                  className="cursor-pointer bg-gray-50 hover:bg-gray-100 border border-gray-200 hover:border-primary/50 rounded-xl p-3 flex flex-col justify-between h-auto transition-all relative overflow-hidden group"
+                  className={cn(
+                    "rounded-xl p-3 flex flex-col justify-between h-auto transition-all relative overflow-hidden group",
+                    isOutOfStock
+                      ? "bg-red-50 border border-red-200 cursor-not-allowed opacity-70"
+                      : "cursor-pointer bg-gray-50 hover:bg-gray-100 border border-gray-200 hover:border-primary/50"
+                  )}
                 >
                   <div className="mb-2">
                     <div className="flex justify-between items-start">
-                      <Badge variant="outline" className="bg-gray-100 border-gray-200 text-gray-500 text-[10px]">
+                      <Badge variant="outline" className={cn(
+                        "border-gray-200 text-[10px]",
+                        isOutOfStock ? "bg-red-100 text-red-500 border-red-200" : "bg-gray-100 text-gray-500"
+                      )}>
                         {stock.productCode}
                       </Badge>
-                      <span className="text-[10px] text-gray-500">Stock: {stock.currentQuantity}</span>
+                      {isOutOfStock ? (
+                        <span className="text-[10px] font-bold text-red-500 bg-red-100 px-1.5 py-0.5 rounded">Sin Stock</span>
+                      ) : (
+                        <span className="text-[10px] text-gray-500">Stock: {stock.currentQuantity}</span>
+                      )}
                     </div>
 
-                    <h3 className="font-bold text-gray-800 text-sm mt-1 leading-tight">{stock.products?.productName}</h3>
+                    <h3 className={cn(
+                      "font-bold text-sm mt-1 leading-tight",
+                      isOutOfStock ? "text-red-400" : "text-gray-800"
+                    )}>{stock.products?.productName}</h3>
                   </div>
 
                   <div className="mt-auto flex justify-between items-center">
-                    <div className="font-bold text-green-600 text-sm">
+                    <div className={cn(
+                      "font-bold text-sm",
+                      isOutOfStock ? "text-red-300" : "text-green-600"
+                    )}>
                       ${stock.sellingPrice.toLocaleString()}
                     </div>
-                    <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                    <div className={cn(
+                      "h-6 w-6 rounded-full flex items-center justify-center transition-colors",
+                      isOutOfStock
+                        ? "bg-red-100 text-red-300"
+                        : "bg-primary/20 text-primary group-hover:bg-primary group-hover:text-white"
+                    )}>
                       <Plus className="w-3 h-3" />
                     </div>
                   </div>
                 </motion.div>
-              ))}
+                )
+              })}
               {filteredStocks.length === 0 && (
                 <div className="col-span-full flex flex-col items-center justify-center h-40 text-gray-500 text-sm">
                   <Package className="w-8 h-8 mb-2 opacity-20" />

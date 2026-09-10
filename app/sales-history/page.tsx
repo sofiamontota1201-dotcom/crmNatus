@@ -160,6 +160,18 @@ export default function SalesHistoryPage() {
             toast({ title: "Cliente requerido", description: "Selecciona un cliente", variant: "destructive" })
             return
         }
+        // Validar stock de todos los productos ANTES de crear la venta
+        for (const item of newSaleItems) {
+            const stock = stocks.find((s: any) => s.id.toString() === item.stockId)
+            if (!stock) {
+                toast({ title: "Producto no disponible", description: `"${item.productName}" ya no tiene stock. Elimínalo del carrito.`, variant: "destructive" })
+                return
+            }
+            if ((stock.currentQuantity ?? 0) < item.quantity) {
+                toast({ title: "Stock insuficiente", description: `"${item.productName}" solo tiene ${stock.currentQuantity} unidades.`, variant: "destructive" })
+                return
+            }
+        }
         setProcessingSale(true)
         try {
             const sellData = {
@@ -528,8 +540,9 @@ export default function SalesHistoryPage() {
 
     const pendingTotal = pendingSalesForDate.reduce((sum: number, s: any) => sum + (s.totalAmount || 0), 0)
 
-    const dailyTotal = filteredSales.reduce((sum: number, s: any) => sum + (s.totalAmount || 0), 0)
-    const dailyCount = filteredSales.length
+    const activeSales = filteredSales.filter((s: any) => s.paymentStatus !== 3)
+    const dailyTotal = activeSales.reduce((sum: number, s: any) => sum + (s.totalAmount || 0), 0)
+    const dailyCount = activeSales.length
 
     const isQuote = selectedSale?.paymentStatus === 0
 

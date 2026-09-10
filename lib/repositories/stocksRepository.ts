@@ -49,7 +49,6 @@ export class StocksRepository {
         products:products(product_name)
       `)
       .eq('status', 1)
-      .gt('current_quantity', 0)
       .order('id', { ascending: false })
     if (error) throw error
     return (data ?? []).map((row) => toCamelCaseKeys<Stock>(row))

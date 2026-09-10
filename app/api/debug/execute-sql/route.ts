@@ -3,7 +3,8 @@ import { cookies } from 'next/headers'
 
 export async function POST(request: Request) {
   try {
-    const { action } = await request.json()
+    const body = await request.json()
+    const { action } = body
 
     const cookieStore = await cookies()
     const supabase = createServerClient(
@@ -25,7 +26,60 @@ export async function POST(request: Request) {
       results: {}
     }
 
-    if (action === 'verify') {
+    if (action === 'analyze-invoices') {
+      // Get details with product info for specific sell IDs
+      const { sellIds } = body
+
+      // 1. Get all sell details with product info for these sell IDs
+      const { data: details } = await supabase
+        .from('sell_details')
+        .select(`
+          id, sell_id, stock_id, sold_quantity, sold_price, total_sold_price, buy_price, total_buy_price, discount, discount_amount,
+          stock:stocks (
+            id, product_code, current_quantity, buying_price, selling_price,
+            product:products ( id, product_name )
+          )
+        `)
+        .in('sell_id', sellIds || [4245,4246,4247,4248,4249,4250,4251])
+        .order('sell_id', { ascending: true })
+
+      // 2. Get sell records
+      const { data: sells } = await supabase
+        .from('sells')
+        .select('id, total_amount, discount_amount, sell_date, payment_status, payment_method, branch_id, created_at, customer_id')
+        .in('id', sellIds || [4245,4246,4247,4248,4249,4250,4251])
+        .order('id', { ascending: true })
+
+      // 3. Get ALL sell_details ever created with stock_id 1711
+      const { data: allStock1711Details } = await supabase
+        .from('sell_details')
+        .select('id, sell_id, stock_id, sold_quantity, sold_price, total_sold_price, created_at')
+        .eq('stock_id', 1711)
+        .order('sell_id', { ascending: true })
+
+      // 4. Check current stock of stock_id 1711
+      const { data: stock1711 } = await supabase
+        .from('stocks')
+        .select('id, product_code, current_quantity, buying_price, selling_price, status')
+        .eq('id', 1711)
+        .single()
+
+      // 5. Check ALL sell_details for these sell IDs (to see if there were others that got deleted)
+      const { data: allDetailsForSells } = await supabase
+        .from('sell_details')
+        .select('id, sell_id, stock_id, sold_quantity, sold_price, total_sold_price, created_at')
+        .in('sell_id', sellIds || [4245,4246,4247,4248,4249,4250,4251])
+        .order('sell_id', { ascending: true })
+
+      results.results = {
+        sells: sells || [],
+        details_with_products: details || [],
+        all_details_for_sells: allDetailsForSells || [],
+        stock_1711_history: allStock1711Details || [],
+        stock_1711_current: stock1711,
+      }
+    }
+    else if (action === 'verify') {
       // 1. Contar permisos
       const { count: permsCount } = await supabase
         .from('permissions')
