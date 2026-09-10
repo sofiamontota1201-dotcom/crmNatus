@@ -44,6 +44,8 @@ export default function SalesHistoryPage() {
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState("")
     const [selectedDate, setSelectedDate] = useState(() => todayLocalISO())
+    const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: todayLocalISO(), end: todayLocalISO() })
+    const [dateFilter, setDateFilter] = useState<"today" | "week" | "month" | "year" | "custom">("today")
     const [selectedSale, setSelectedSale] = useState<any>(null)
     const [loadingDetails, setLoadingDetails] = useState(false)
 
@@ -465,10 +467,51 @@ export default function SalesHistoryPage() {
         }
     }
 
+    // --- DATE RANGE HELPERS ---
+    const toLocalISO = (d: Date) => {
+        const year = d.getFullYear()
+        const month = String(d.getMonth() + 1).padStart(2, '0')
+        const day = String(d.getDate()).padStart(2, '0')
+        return `${year}-${month}-${day}`
+    }
+
+    const getDateRange = (): { start: string; end: string } => {
+        const now = new Date()
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+        switch (dateFilter) {
+            case "today":
+                return { start: toLocalISO(today), end: toLocalISO(today) }
+            case "week": {
+                const day = today.getDay()
+                const monday = new Date(today)
+                monday.setDate(today.getDate() - (day === 0 ? 6 : day - 1))
+                const sunday = new Date(monday)
+                sunday.setDate(monday.getDate() + 6)
+                return { start: toLocalISO(monday), end: toLocalISO(sunday) }
+            }
+            case "month": {
+                const first = new Date(today.getFullYear(), today.getMonth(), 1)
+                const last = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+                return { start: toLocalISO(first), end: toLocalISO(last) }
+            }
+            case "year": {
+                const first = new Date(today.getFullYear(), 0, 1)
+                const last = new Date(today.getFullYear(), 11, 31)
+                return { start: toLocalISO(first), end: toLocalISO(last) }
+            }
+            case "custom":
+                return dateRange
+            default:
+                return { start: toLocalISO(today), end: toLocalISO(today) }
+        }
+    }
+
     const filteredSales = sales.filter(sale => {
         const rawDate = sale.sellDate || sale.createdAt
         const saleDate = typeof rawDate === 'string' ? rawDate.split('T')[0] : new Date(rawDate).toLocaleDateString('en-CA')
-        const matchesDate = saleDate === selectedDate
+        const range = getDateRange()
+        const matchesDate = saleDate >= range.start && saleDate <= range.end
         const matchesSearch = (sale.customers?.customerName || "Consumidor Final").toLowerCase().includes(searchTerm.toLowerCase()) ||
             String(sale.id).includes(searchTerm)
         return matchesDate && matchesSearch
@@ -477,9 +520,10 @@ export default function SalesHistoryPage() {
     const pendingSalesForDate = sales.filter(s => {
         const rawDate = s.sellDate || s.createdAt
         const saleDate = typeof rawDate === 'string' ? rawDate.split('T')[0] : new Date(rawDate).toLocaleDateString('en-CA')
+        const range = getDateRange()
         return s.paymentStatus === 0 &&
             s.paymentStatus !== 3 &&
-            saleDate === selectedDate
+            saleDate >= range.start && saleDate <= range.end
     })
 
     const pendingTotal = pendingSalesForDate.reduce((sum: number, s: any) => sum + (s.totalAmount || 0), 0)
@@ -989,12 +1033,49 @@ export default function SalesHistoryPage() {
                         <p className="text-gray-500 mt-1">Consulta cada compra realizada y el detalle de ítems.</p>
                     </div>
                     <div className="flex items-center gap-3 flex-wrap">
-                        <input
-                            type="date"
-                            value={selectedDate}
-                            onChange={(e) => setSelectedDate(e.target.value)}
-                            className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-800 focus:ring-2 focus:ring-primary/40 focus:outline-none"
-                        />
+                        {/* Quick Date Filters */}
+                        <div className="flex bg-gray-100 rounded-xl p-1 gap-0.5">
+                            {([
+                                { key: "today" as const, label: "Hoy" },
+                                { key: "week" as const, label: "Semana" },
+                                { key: "month" as const, label: "Mes" },
+                                { key: "year" as const, label: "Año" },
+                                { key: "custom" as const, label: "Otro" },
+                            ]).map((f) => (
+                                <button
+                                    key={f.key}
+                                    onClick={() => setDateFilter(f.key)}
+                                    className={cn(
+                                        "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                                        dateFilter === f.key
+                                            ? "bg-white text-primary shadow-sm"
+                                            : "text-gray-500 hover:text-gray-700"
+                                    )}
+                                >
+                                    {f.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Custom Date Range */}
+                        {dateFilter === "custom" && (
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="date"
+                                    value={dateRange.start}
+                                    onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                                    className="px-3 py-1.5 rounded-xl border border-gray-200 bg-white text-xs font-medium text-gray-800 focus:ring-2 focus:ring-primary/40 focus:outline-none"
+                                />
+                                <span className="text-gray-400 text-xs">a</span>
+                                <input
+                                    type="date"
+                                    value={dateRange.end}
+                                    onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                                    className="px-3 py-1.5 rounded-xl border border-gray-200 bg-white text-xs font-medium text-gray-800 focus:ring-2 focus:ring-primary/40 focus:outline-none"
+                                />
+                            </div>
+                        )}
+
                         <Button
                             onClick={openNewSaleModal}
                             variant="outline"
@@ -1042,7 +1123,13 @@ export default function SalesHistoryPage() {
                     <div className="w-px h-5 bg-gray-200" />
                     <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm text-gray-500">{new Date(selectedDate + 'T00:00:00').toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                        <span className="text-sm text-gray-500">
+                            {dateFilter === "today" && new Date(dateRange.start + 'T00:00:00').toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                            {dateFilter === "week" && `Semana: ${new Date(dateRange.start + 'T00:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })} - ${new Date(dateRange.end + 'T00:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })}`}
+                            {dateFilter === "month" && new Date(dateRange.start + 'T00:00:00').toLocaleDateString('es-CO', { year: 'numeric', month: 'long' })}
+                            {dateFilter === "year" && new Date(dateRange.start + 'T00:00:00').getFullYear().toString()}
+                            {dateFilter === "custom" && `${new Date(dateRange.start + 'T00:00:00').toLocaleDateString('es-CO')} - ${new Date(dateRange.end + 'T00:00:00').toLocaleDateString('es-CO')}`}
+                        </span>
                     </div>
                 </div>
 
