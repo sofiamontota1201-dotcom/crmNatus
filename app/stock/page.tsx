@@ -32,6 +32,7 @@ import { useToast } from "@/hooks/use-toast"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { isNumericCodeName } from "@/lib/utils/product"
+import { useDebounce } from "@/hooks/use-debounce"
 
 export default function StockPage() {
   const router = useRouter()
@@ -46,8 +47,10 @@ export default function StockPage() {
   // Search & Filters
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("")
+  const debouncedSearch = useDebounce(searchTerm, 300)
   const [mainSearchTerm, setMainSearchTerm] = useState("")
   const [mainSelectedCategory, setMainSelectedCategory] = useState("all")
+  const debouncedMainSearch = useDebounce(mainSearchTerm, 300)
 
   const { toast } = useToast()
 
@@ -280,15 +283,15 @@ export default function StockPage() {
   };
 
   const filteredStocks = stocks.filter((stock) => {
-    const matchesSearch = (stock.products?.productName || "").toLowerCase().includes(mainSearchTerm.toLowerCase()) ||
-      (stock.productCode || "").toLowerCase().includes(mainSearchTerm.toLowerCase())
+    const matchesSearch = (stock.products?.productName || "").toLowerCase().includes(debouncedMainSearch.toLowerCase()) ||
+      (stock.productCode || "").toLowerCase().includes(debouncedMainSearch.toLowerCase())
     const matchesCategory = mainSelectedCategory === "all" || stock.categoryId?.toString() === mainSelectedCategory
     return matchesSearch && matchesCategory && !isNumericCodeName(stock.products?.productName)
   })
 
   // Modal product filter
   const modalFilteredProducts = products.filter(p =>
-    (!searchTerm || p.productName.toLowerCase().includes(searchTerm.toLowerCase())) &&
+    (!debouncedSearch || p.productName.toLowerCase().includes(debouncedSearch.toLowerCase())) &&
     (!selectedCategory || selectedCategory === "all" || p.categoryId?.toString() === selectedCategory) &&
     !isNumericCodeName(p.productName)
   )

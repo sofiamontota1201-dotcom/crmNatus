@@ -25,7 +25,7 @@ import { useToast } from "@/hooks/use-toast"
 import { createProductAction, updateProductAction, deleteProductAction, updateProductSellingPriceAction } from "@/app/actions/products"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
-import { isNumericCodeName } from "@/lib/utils/product"
+import { useDebounce } from "@/hooks/use-debounce"
 
 interface ProductsClientProps {
     initialProducts: Product[]
@@ -45,6 +45,7 @@ export function ProductsClient({ initialProducts, categories, vendors }: Product
     const [editingSellingPrice, setEditingSellingPrice] = useState<{ productId: number; price: string } | null>(null)
     const { toast } = useToast()
     const [isPending, startTransition] = useTransition()
+    const debouncedSearch = useDebounce(searchTerm, 300)
 
     const [formData, setFormData] = useState({
         productName: "",
@@ -173,16 +174,15 @@ export function ProductsClient({ initialProducts, categories, vendors }: Product
 
     const filteredProducts = products.filter((product) => {
         const matchesSearch =
-            product.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (product.details && product.details.toLowerCase().includes(searchTerm.toLowerCase()))
+            product.productName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+            (product.details && product.details.toLowerCase().includes(debouncedSearch.toLowerCase()))
         const matchesCategory = selectedCategory === "all" || product.categoryId?.toString() === selectedCategory
         const matchesVendor = selectedVendor === "all" || product.vendorId?.toString() === selectedVendor
         const totalStock = product.stocks?.reduce((acc, s) => acc + s.currentQuantity, 0) || 0
         const matchesStock = stockFilter === "all"
             || (stockFilter === "with" && totalStock > 0)
             || (stockFilter === "without" && totalStock === 0)
-        const isNumericCode = isNumericCodeName(product.productName)
-        return matchesSearch && matchesCategory && matchesVendor && matchesStock && !isNumericCode
+        return matchesSearch && matchesCategory && matchesVendor && matchesStock
     })
 
     return (
@@ -390,7 +390,6 @@ export function ProductsClient({ initialProducts, categories, vendors }: Product
                         {filteredProducts.map((product) => (
                             <motion.div
                                 key={product.id}
-                                layout
                                 initial={{ opacity: 0, scale: 0.9 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.9 }}

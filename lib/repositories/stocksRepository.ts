@@ -16,14 +16,14 @@ export class StocksRepository {
     return toCamelCaseKeys<Stock>(data)
   }
 
-  async listWithRelations(): Promise<Stock[]> {
+  async listWithRelations(options?: { search?: string; limit?: number }): Promise<Stock[]> {
     const { data: { user } } = await this.client.auth.getUser()
     if (!user) throw new Error('User not authenticated')
 
     // Obtener permisos del usuario
     const permissions = await getUserPermissions(this.client, user.id)
 
-    const { data, error } = await this.client
+    let query = this.client
       .from('stocks')
       .select(`
         *,
@@ -32,6 +32,11 @@ export class StocksRepository {
         categories:categories(name)
       `)
       .order('id', { ascending: false })
+    if (options?.search) {
+      query = query.ilike('product_code', `%${options.search}%`)
+    }
+    query = query.limit(options?.limit ?? 500)
+    const { data, error } = await query
     if (error) throw error
 
     const stocks = (data ?? []).map((row) => toCamelCaseKeys<Stock>(row))
@@ -40,18 +45,48 @@ export class StocksRepository {
     return filterDataByPermissions(stocks, user.id, permissions)
   }
 
-  // Versión ligera para POS - solo lo necesario, sin JOINs pesados
+  // Trae TODOS los productos activos - los que no tienen stock aparecen con currentQuantity 0
   async listForPOS(): Promise<Stock[]> {
-    const { data, error } = await this.client
-      .from('stocks')
-      .select(`
-        id, product_code, current_quantity, buying_price, selling_price, status, category_id,
-        products:products(product_name)
-      `)
-      .eq('status', 1)
-      .order('id', { ascending: false })
-    if (error) throw error
-    return (data ?? []).map((row) => toCamelCaseKeys<Stock>(row))
+    const [stocksResult, productsResult] = await Promise.all([
+      this.client
+        .from('stocks')
+        .select(`
+          id, product_code, current_quantity, buying_price, selling_price, status, category_id, product_id,
+          products:products(product_name, id)
+        `)
+        .eq('status', 1)
+        .order('id', { ascending: false }),
+      this.client
+        .from('products')
+        .select('id, product_name, category_id, status')
+        .eq('status', 1)
+        .order('product_name')
+    ])
+    if (stocksResult.error) throw stocksResult.error
+    if (productsResult.error) throw productsResult.error
+
+    const stocksData = (stocksResult.data ?? []).map((row) => toCamelCaseKeys<Stock>(row))
+    const productsData = productsResult.data ?? []
+
+    const stocksWithProducts = new Set(stocksData.map((s: any) => s.productId))
+    const productsWithoutStock = productsData
+      .filter((p) => !stocksWithProducts.has(p.id))
+      .map((p) => ({
+        id: -(p.id),
+        productCode: `SIN-STOCK`,
+        currentQuantity: 0,
+        buyingPrice: 0,
+        sellingPrice: 0,
+        status: 1,
+        categoryId: p.category_id,
+        productId: p.id,
+        products: { productName: p.product_name },
+        chalanNo: '',
+        discount: 0,
+        stockQuantity: 0,
+      } as Stock))
+
+    return [...stocksData, ...productsWithoutStock]
   }
 
   async create(input: Omit<Stock, 'id' | 'createdAt' | 'updatedAt' | 'products' | 'vendors' | 'categories'>): Promise<Stock> {

@@ -5,11 +5,16 @@ import type { Product } from '@/types/domain'
 export class ProductsRepository {
   constructor(private readonly client: SupabaseClient<any, any, any>) { }
 
-  async list(): Promise<Product[]> {
-    const { data, error } = await this.client
+  async list(options?: { search?: string; limit?: number }): Promise<Product[]> {
+    let query = this.client
       .from('products')
-      .select(`*, categories(name), vendors(name), stocks(current_quantity, buying_price, selling_price)`) // include stock info
+      .select(`*, categories(name), vendors(name), stocks(current_quantity, buying_price, selling_price)`)
       .order('created_at', { ascending: false })
+    if (options?.search) {
+      query = query.ilike('product_name', `%${options.search}%`)
+    }
+    query = query.limit(options?.limit ?? 500)
+    const { data, error } = await query
     if (error) throw error
     return (data ?? []).map((row) => toCamelCaseKeys<Product>(row))
   }
