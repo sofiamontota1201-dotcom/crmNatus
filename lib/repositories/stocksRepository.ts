@@ -89,7 +89,20 @@ export class StocksRepository {
         stockQuantity: 0,
       } as Stock))
 
-    return [...stocksData, ...productsWithoutStock]
+    // Sort: products with stock first (by quantity desc), then SIN-STOCK at the bottom
+    const allItems = [...stocksData, ...productsWithoutStock]
+    allItems.sort((a: any, b: any) => {
+      const aQty = a.currentQuantity ?? 0
+      const bQty = b.currentQuantity ?? 0
+      // Both have stock: sort by quantity descending
+      if (aQty > 0 && bQty > 0) return bQty - aQty
+      // One has stock, one doesn't: stock goes first
+      if (aQty > 0 && bQty <= 0) return -1
+      if (aQty <= 0 && bQty > 0) return 1
+      // Both without stock: sort by name
+      return String(a.products?.productName || '').localeCompare(String(b.products?.productName || ''))
+    })
+    return allItems
   }
 
   async create(input: Omit<Stock, 'id' | 'createdAt' | 'updatedAt' | 'products' | 'vendors' | 'categories'>): Promise<Stock> {
