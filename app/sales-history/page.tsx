@@ -484,6 +484,9 @@ export default function SalesHistoryPage() {
 
     const pendingTotal = pendingSalesForDate.reduce((sum: number, s: any) => sum + (s.totalAmount || 0), 0)
 
+    const dailyTotal = filteredSales.reduce((sum: number, s: any) => sum + (s.totalAmount || 0), 0)
+    const dailyCount = filteredSales.length
+
     const isQuote = selectedSale?.paymentStatus === 0
 
     const quoteCalculations = useMemo(() => {
@@ -1016,15 +1019,25 @@ export default function SalesHistoryPage() {
                 </div>
 
                 {/* Resumen del día */}
-                <div className="flex items-center gap-4 mb-6 p-4 bg-white rounded-2xl border border-gray-200 shadow-sm">
+                <div className="flex items-center gap-4 mb-6 p-4 bg-white rounded-2xl border border-gray-200 shadow-sm flex-wrap">
                     <div className="flex items-center gap-2">
-                        <Receipt className="w-4 h-4 text-primary" />
-                        <span className="text-sm font-medium text-gray-600">Ventas pendientes: <span className="font-bold text-gray-800">{pendingSalesForDate.length}</span></span>
+                        <Package className="w-4 h-4 text-gray-600" />
+                        <span className="text-sm font-medium text-gray-600">Facturado hoy: <span className="font-bold text-gray-800">{dailyCount}</span></span>
                     </div>
                     <div className="w-px h-5 bg-gray-200" />
                     <div className="flex items-center gap-2">
-                        <DollarSign className="w-4 h-4 text-green-500" />
-                        <span className="text-sm font-medium text-gray-600">Total pendiente: <span className="font-bold text-green-600">${pendingTotal.toLocaleString()}</span></span>
+                        <DollarSign className="w-4 h-4 text-green-600" />
+                        <span className="text-sm font-medium text-gray-600">Total: <span className="font-bold text-green-700">${dailyTotal.toLocaleString()}</span></span>
+                    </div>
+                    <div className="w-px h-5 bg-gray-200" />
+                    <div className="flex items-center gap-2">
+                        <Receipt className="w-4 h-4 text-amber-500" />
+                        <span className="text-sm font-medium text-gray-600">Pendientes: <span className="font-bold text-amber-600">{pendingSalesForDate.length}</span></span>
+                    </div>
+                    <div className="w-px h-5 bg-gray-200" />
+                    <div className="flex items-center gap-2">
+                        <DollarSign className="w-4 h-4 text-amber-400" />
+                        <span className="text-sm font-medium text-gray-600">Pendiente: <span className="font-bold text-amber-500">${pendingTotal.toLocaleString()}</span></span>
                     </div>
                     <div className="w-px h-5 bg-gray-200" />
                     <div className="flex items-center gap-2">

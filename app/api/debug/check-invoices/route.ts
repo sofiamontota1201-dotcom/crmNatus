@@ -59,7 +59,7 @@ export async function POST(request: Request) {
           details_count: details?.length || 0,
           sell_date: sell.sell_date,
           payment_status: sell.payment_status,
-          customer: sell.customers?.customer_name || 'Sin cliente',
+          customer: (sell.customers as any)?.customer_name || 'Sin cliente',
           details: details || [],
         })
       }
