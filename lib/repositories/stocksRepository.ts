@@ -68,9 +68,12 @@ export class StocksRepository {
     const stocksData = (stocksResult.data ?? []).map((row) => toCamelCaseKeys<Stock>(row))
     const productsData = productsResult.data ?? []
 
-    const stocksWithProducts = new Set(stocksData.map((s: any) => s.productId))
+    // Track which products already have stock records (by product_id AND by product_name)
+    const stockProductIds = new Set(stocksData.filter((s: any) => s.productId && s.productId > 0).map((s: any) => s.productId))
+    const stockProductNames = new Set(stocksData.map((s: any) => String(s.products?.productName || '').trim().toUpperCase()))
+
     const productsWithoutStock = productsData
-      .filter((p) => !stocksWithProducts.has(p.id))
+      .filter((p) => !stockProductIds.has(p.id) && !stockProductNames.has(String(p.product_name || '').trim().toUpperCase()))
       .map((p) => ({
         id: -(p.id),
         productCode: `SIN-STOCK`,
