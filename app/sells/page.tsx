@@ -162,9 +162,13 @@ export default function SellsPage() {
     return sub - discount
   }
 
-  const addProductToCart = (stock: Stock) => {
+  const addProductToCart = (stock: Stock, priceLevel: 1 | 2 | 3 = 1) => {
     const activeDiscount = parseFloat(globalDiscount) || 0
     const existingIndex = selectedItems.findIndex(item => item.stockId === stock.id.toString())
+
+    let selectedPrice = stock.sellingPrice
+    if (priceLevel === 2) selectedPrice = stock.sellingPrice2 ?? 0
+    if (priceLevel === 3) selectedPrice = stock.sellingPrice3 ?? 0
 
     if (existingIndex >= 0) {
       const newItems = [...selectedItems]
@@ -184,10 +188,10 @@ export default function SellsPage() {
         productName: stock.products?.productName || "Producto",
         productCode: stock.productCode || "REF",
         quantity: 1,
-        price: stock.sellingPrice,
+        price: selectedPrice,
         unit: "UNID",
         discountPercent: activeDiscount,
-        total: calculateItemTotal(stock.sellingPrice, 1, activeDiscount),
+        total: calculateItemTotal(selectedPrice, 1, activeDiscount),
         availableStock: stock.currentQuantity,
       }
       setSelectedItems([...selectedItems, newItem])
@@ -588,12 +592,57 @@ export default function SellsPage() {
                     )}>{stock.products?.productName}</h3>
                   </div>
 
-                  <div className="mt-auto flex justify-between items-center">
-                    <div className={cn(
-                      "font-bold text-sm",
-                      isOutOfStock ? "text-red-300" : "text-green-600"
-                    )}>
-                      ${stock.sellingPrice.toLocaleString()}
+                  <div className="mt-auto">
+                    <div className="flex items-center gap-1 mb-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!isOutOfStock) addProductToCart(stock, 1);
+                        }}
+                        disabled={isOutOfStock}
+                        className={cn(
+                          "flex-1 text-[9px] font-bold py-1 px-1.5 rounded border transition-colors",
+                          isOutOfStock
+                            ? "bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed"
+                            : "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                        )}
+                      >
+                        P1: ${stock.sellingPrice.toLocaleString()}
+                      </button>
+                      {(stock.sellingPrice2 ?? 0) > 0 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!isOutOfStock) addProductToCart(stock, 2);
+                          }}
+                          disabled={isOutOfStock}
+                          className={cn(
+                            "flex-1 text-[9px] font-bold py-1 px-1.5 rounded border transition-colors",
+                            isOutOfStock
+                              ? "bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed"
+                              : "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100"
+                          )}
+                        >
+                          P2: ${stock.sellingPrice2!.toLocaleString()}
+                        </button>
+                      )}
+                      {(stock.sellingPrice3 ?? 0) > 0 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!isOutOfStock) addProductToCart(stock, 3);
+                          }}
+                          disabled={isOutOfStock}
+                          className={cn(
+                            "flex-1 text-[9px] font-bold py-1 px-1.5 rounded border transition-colors",
+                            isOutOfStock
+                              ? "bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed"
+                              : "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                          )}
+                        >
+                          P3: ${stock.sellingPrice3!.toLocaleString()}
+                        </button>
+                      )}
                     </div>
                     <div className={cn(
                       "h-6 w-6 rounded-full flex items-center justify-center transition-colors",

@@ -11,6 +11,9 @@ interface LoadItem {
     stockId?: number | null
     quantity: number
     unitCost: number
+    sellingPrice?: number
+    sellingPrice2?: number
+    sellingPrice3?: number
 }
 
 interface CreateLoadRequest {
@@ -80,7 +83,9 @@ export async function POST(request: NextRequest) {
                         product_code: productCode,
                         chalan_no: chalanNo,
                         buying_price: item.unitCost,
-                        selling_price: Math.round(item.unitCost * 1.13),
+                        selling_price: item.sellingPrice || 0,
+                        selling_price_2: item.sellingPrice2 || 0,
+                        selling_price_3: item.sellingPrice3 || 0,
                         stock_quantity: item.quantity,
                         current_quantity: item.quantity,
 

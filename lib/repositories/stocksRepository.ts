@@ -51,7 +51,7 @@ export class StocksRepository {
       this.client
         .from('stocks')
         .select(`
-          id, product_code, current_quantity, buying_price, selling_price, status, category_id, product_id,
+          id, product_code, current_quantity, buying_price, selling_price, selling_price_2, selling_price_3, status, category_id, product_id,
           products:products(product_name, id)
         `)
         .eq('status', 1)
@@ -80,6 +80,8 @@ export class StocksRepository {
         currentQuantity: 0,
         buyingPrice: 0,
         sellingPrice: 0,
+        sellingPrice2: 0,
+        sellingPrice3: 0,
         status: 1,
         categoryId: p.category_id,
         productId: p.id,

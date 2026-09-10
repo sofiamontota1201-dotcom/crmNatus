@@ -59,6 +59,8 @@ export default function StockPage() {
     vendorId: "",
     buyingPrice: "",
     sellingPrice: "",
+    sellingPrice2: "",
+    sellingPrice3: "",
     discount: "0",
     stockQuantity: "",
     currentQuantity: "",
@@ -131,6 +133,8 @@ export default function StockPage() {
         chalanNo: editingStock?.chalanNo || generateChalanNo(),
         buyingPrice: Number.parseFloat(formData.buyingPrice) || 0,
         sellingPrice: Number.parseFloat(formData.sellingPrice) || 0,
+        sellingPrice2: Number.parseFloat(formData.sellingPrice2) || 0,
+        sellingPrice3: Number.parseFloat(formData.sellingPrice3) || 0,
         discount: Number.parseFloat(formData.discount) || 0,
         stockQuantity: parsedStockQuantity + (editingStock ? added : 0),
         currentQuantity: parsedCurrentQuantity + (editingStock ? added : 0),
@@ -175,6 +179,8 @@ export default function StockPage() {
       vendorId: "",
       buyingPrice: "",
       sellingPrice: "",
+      sellingPrice2: "",
+      sellingPrice3: "",
       discount: "0",
       stockQuantity: "",
       currentQuantity: "",
@@ -191,6 +197,8 @@ export default function StockPage() {
       vendorId: stock.vendorId?.toString() || "",
       buyingPrice: stock.buyingPrice.toString(),
       sellingPrice: stock.sellingPrice.toString(),
+      sellingPrice2: (stock.sellingPrice2 ?? 0).toString(),
+      sellingPrice3: (stock.sellingPrice3 ?? 0).toString(),
       discount: stock.discount.toString(),
       stockQuantity: stock.stockQuantity.toString(),
       currentQuantity: stock.currentQuantity.toString(),
@@ -459,21 +467,14 @@ export default function StockPage() {
                             type="number"
                             step="0.01"
                             value={formData.buyingPrice}
-                            onChange={(e) => {
-                              const buyingPrice = e.target.value
-                              // Auto-calculate selling price with 13% markup
-                              const sellingPrice = buyingPrice 
-                                ? (Number.parseFloat(buyingPrice) * 1.13).toFixed(2)
-                                : ""
-                              setFormData({ ...formData, buyingPrice, sellingPrice })
-                            }}
+                            onChange={(e) => setFormData({ ...formData, buyingPrice: e.target.value })}
                             className="pl-9 bg-gray-50 border-gray-200"
                             placeholder="0.00"
                           />
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-gray-500">Precio de Venta (Auto +13%)</Label>
+                        <Label className="text-gray-500">Precio de Venta</Label>
                         <div className="relative">
                           <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                           <Input
@@ -481,11 +482,39 @@ export default function StockPage() {
                             step="0.01"
                             value={formData.sellingPrice}
                             onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })}
-                            className="pl-9 bg-gray-50 border-gray-200 text-green-400 font-bold"
+                            className="pl-9 bg-gray-50 border-gray-200"
                             placeholder="0.00"
                           />
                         </div>
-                        <p className="text-[10px] text-green-600/60">Se calcula automáticamente al cambiar precio de compra</p>
+
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-gray-500">Precio Mayorista (P2)</Label>
+                        <div className="relative">
+                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={formData.sellingPrice2}
+                            onChange={(e) => setFormData({ ...formData, sellingPrice2: e.target.value })}
+                            className="pl-9 bg-gray-50 border-gray-200"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-gray-500">Precio Especial (P3)</Label>
+                        <div className="relative">
+                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={formData.sellingPrice3}
+                            onChange={(e) => setFormData({ ...formData, sellingPrice3: e.target.value })}
+                            className="pl-9 bg-gray-50 border-gray-200"
+                            placeholder="0.00"
+                          />
+                        </div>
                       </div>
                       <div className="col-span-1 sm:col-span-2 space-y-2">
                         <Label className="text-gray-500">Notas Adicionales</Label>
@@ -595,14 +624,22 @@ export default function StockPage() {
                     {/* ── PRICING + ACTIONS PANEL ── */}
                     <div className="border-t border-gray-100 bg-white/[0.02] px-4 py-3">
                       {/* Grid de precios */}
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                         <div className="bg-gray-50 rounded-lg p-2.5 border border-gray-100">
                           <span className="text-[10px] text-gray-500 block">Costo</span>
                           <span className="text-gray-700 font-semibold text-sm mt-0.5 block">${stock.buyingPrice.toLocaleString()}</span>
                         </div>
                         <div className="bg-green-500/10 rounded-lg p-2.5 border border-green-500/20">
-                          <span className="text-[10px] text-green-700/70 block">Venta</span>
+                          <span className="text-[10px] text-green-700/70 block">Venta (P1)</span>
                           <span className="text-green-600 font-bold text-sm mt-0.5 block">${stock.sellingPrice.toLocaleString()}</span>
+                        </div>
+                        <div className="bg-blue-500/10 rounded-lg p-2.5 border border-blue-500/20">
+                          <span className="text-[10px] text-blue-700/70 block">Mayorista (P2)</span>
+                          <span className="text-blue-600 font-bold text-sm mt-0.5 block">${(stock.sellingPrice2 ?? 0).toLocaleString()}</span>
+                        </div>
+                        <div className="bg-amber-500/10 rounded-lg p-2.5 border border-amber-500/20">
+                          <span className="text-[10px] text-amber-700/70 block">Especial (P3)</span>
+                          <span className="text-amber-600 font-bold text-sm mt-0.5 block">${(stock.sellingPrice3 ?? 0).toLocaleString()}</span>
                         </div>
                         <div className="bg-gray-50 rounded-lg p-2.5 border border-gray-100">
                           <span className="text-[10px] text-gray-500 block">Existencias</span>

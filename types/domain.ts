@@ -192,6 +192,8 @@ export interface Stock {
   chalanNo: string
   buyingPrice: number
   sellingPrice: number
+  sellingPrice2: number
+  sellingPrice3: number
   discount: number
   stockQuantity: number
   currentQuantity: number

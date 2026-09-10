@@ -31,6 +31,8 @@ interface CartItem {
     quantity: number
     unitCost: number
     sellingPrice: number
+    sellingPrice2: number
+    sellingPrice3: number
 }
 
 export default function CargarMercanciaPage() {
@@ -44,7 +46,7 @@ export default function CargarMercanciaPage() {
     const [history, setHistory] = useState<MerchandiseLoad[]>([])
     const [vendorStocks, setVendorStocks] = useState<Record<number, number>>({})
     const [productPrices, setProductPrices] = useState<Record<number, number>>({})
-    const [sellingPrices, setSellingPrices] = useState<Record<number, number>>({})
+    const [sellingPrices, setSellingPrices] = useState<Record<number, { p1: number; p2: number; p3: number }>>({})
 
     // Header form
     const [vendorId, setVendorId] = useState<string>("")
@@ -100,7 +102,7 @@ export default function CargarMercanciaPage() {
                 const rawProducts = productsRes.data as any[]
                 const stockMap: Record<number, number> = {}
                 const priceMap: Record<number, number> = {}
-                const sellPriceMap: Record<number, number> = {}
+                const sellPriceMap: Record<number, { p1: number; p2: number; p3: number }> = {}
 
                 for (const p of rawProducts) {
                     if (p.stocks) {
@@ -109,8 +111,8 @@ export default function CargarMercanciaPage() {
                             if (s.buying_price && (!priceMap[s.product_id] || s.buying_price < priceMap[s.product_id])) {
                                 priceMap[s.product_id] = s.buying_price
                             }
-                            if (s.selling_price && (!sellPriceMap[s.product_id] || s.selling_price < sellPriceMap[s.product_id])) {
-                                sellPriceMap[s.product_id] = s.selling_price
+                            if (s.selling_price && (!sellPriceMap[s.product_id] || s.selling_price < sellPriceMap[s.product_id].p1)) {
+                                sellPriceMap[s.product_id] = { p1: s.selling_price, p2: s.selling_price_2 || 0, p3: s.selling_price_3 || 0 }
                             }
                         }
                     }
@@ -164,14 +166,16 @@ export default function CargarMercanciaPage() {
             setCart(cart.map(c => c.product.id === product.id ? { ...c, quantity: c.quantity + 1 } : c))
         } else {
             const defaultCost = productPrices[product.id] || 0
-            const defaultSell = sellingPrices[product.id] || 0
-            setCart([...cart, { product, quantity: 1, unitCost: defaultCost, sellingPrice: defaultSell }])
+            const defaultSell = sellingPrices[product.id]?.p1 || 0
+            const defaultSell2 = sellingPrices[product.id]?.p2 || 0
+            const defaultSell3 = sellingPrices[product.id]?.p3 || 0
+            setCart([...cart, { product, quantity: 1, unitCost: defaultCost, sellingPrice: defaultSell, sellingPrice2: defaultSell2, sellingPrice3: defaultSell3 }])
         }
         setSearchTerm("")
         toast({ title: "Agregado", description: `${product.productName} agregado al carrito` })
     }
 
-    const updateCartItem = (productId: number, field: 'quantity' | 'unitCost' | 'sellingPrice', value: number) => {
+    const updateCartItem = (productId: number, field: 'quantity' | 'unitCost' | 'sellingPrice' | 'sellingPrice2' | 'sellingPrice3', value: number) => {
         setCart(cart.map(c => c.product.id === productId ? { ...c, [field]: Math.max(0, value) } : c))
     }
 
@@ -211,6 +215,8 @@ export default function CargarMercanciaPage() {
                         quantity: c.quantity,
                         unitCost: c.unitCost,
                         sellingPrice: c.sellingPrice || 0,
+                        sellingPrice2: c.sellingPrice2 || 0,
+                        sellingPrice3: c.sellingPrice3 || 0,
                     })),
                 }),
             })
@@ -429,7 +435,11 @@ export default function CargarMercanciaPage() {
                                                 {product.currentStock || 0}
                                             </span>
                                             {sellingPrices[product.id] ? (
-                                                <span className="text-[9px] font-bold text-blue-600">${sellingPrices[product.id].toLocaleString()}</span>
+                                                <div className="flex gap-1">
+                                                    <span className="text-[8px] font-bold text-blue-600 bg-blue-50 px-1 rounded">P1:${sellingPrices[product.id].p1.toLocaleString()}</span>
+                                                    {sellingPrices[product.id].p2 > 0 && <span className="text-[8px] font-bold text-purple-600 bg-purple-50 px-1 rounded">P2:${sellingPrices[product.id].p2.toLocaleString()}</span>}
+                                                    {sellingPrices[product.id].p3 > 0 && <span className="text-[8px] font-bold text-amber-600 bg-amber-50 px-1 rounded">P3:${sellingPrices[product.id].p3.toLocaleString()}</span>}
+                                                </div>
                                             ) : (
                                                 <Plus className="w-3 h-3 text-primary" />
                                             )}
@@ -516,8 +526,24 @@ export default function CargarMercanciaPage() {
                                                         min="0"
                                                         value={item.sellingPrice || ""}
                                                         onChange={e => updateCartItem(item.product.id, 'sellingPrice', Number(e.target.value))}
-                                                        placeholder="Venta"
+                                                        placeholder="P1"
                                                         className="h-7 text-center text-[10px] bg-blue-50 border-blue-200"
+                                                    />
+                                                    <Input
+                                                        type="number"
+                                                        min="0"
+                                                        value={item.sellingPrice2 || ""}
+                                                        onChange={e => updateCartItem(item.product.id, 'sellingPrice2', Number(e.target.value))}
+                                                        placeholder="P2"
+                                                        className="h-7 text-center text-[10px] bg-purple-50 border-purple-200"
+                                                    />
+                                                    <Input
+                                                        type="number"
+                                                        min="0"
+                                                        value={item.sellingPrice3 || ""}
+                                                        onChange={e => updateCartItem(item.product.id, 'sellingPrice3', Number(e.target.value))}
+                                                        placeholder="P3"
+                                                        className="h-7 text-center text-[10px] bg-amber-50 border-amber-200"
                                                     />
                                                 </div>
                                                 <div className="flex items-center justify-between mt-1.5">

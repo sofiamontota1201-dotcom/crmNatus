@@ -105,8 +105,13 @@ export default function SalesHistoryPage() {
         setNewSaleOpen(true)
     }
 
-    const addProductToCart = (stock: any) => {
+    const addProductToCart = (stock: any, priceLevel: 1 | 2 | 3 = 1) => {
         const existingIndex = newSaleItems.findIndex(item => item.stockId === stock.id.toString())
+        
+        let selectedPrice = stock.sellingPrice || stock.buyingPrice || 0
+        if (priceLevel === 2) selectedPrice = stock.sellingPrice2 || stock.sellingPrice || stock.buyingPrice || 0
+        if (priceLevel === 3) selectedPrice = stock.sellingPrice3 || stock.sellingPrice || stock.buyingPrice || 0
+        
         if (existingIndex >= 0) {
             const newItems = [...newSaleItems]
             if (newItems[existingIndex].quantity + 1 > newItems[existingIndex].availableStock) {
@@ -122,10 +127,10 @@ export default function SalesHistoryPage() {
                 productName: stock.products?.productName || "Producto",
                 productCode: stock.productCode || "REF",
                 quantity: 1,
-                price: stock.salePrice || stock.buyingPrice || 0,
+                price: selectedPrice,
                 availableStock: stock.currentQuantity || 0,
                 discountPercent: 0,
-                total: stock.salePrice || stock.buyingPrice || 0,
+                total: selectedPrice,
             }
             setNewSaleItems([...newSaleItems, newItem])
         }
@@ -1638,15 +1643,34 @@ export default function SalesHistoryPage() {
                                            return name.toLowerCase().includes(catalogSearch.toLowerCase()) && !isNumericCodeName(name)
                                        })
                                         .map((stock: any) => (
-                                            <button
-                                                key={stock.id}
-                                                onClick={() => addProductToCart(stock)}
-                                                className="p-3 bg-gray-50 border border-gray-200 rounded-xl text-left hover:border-primary hover:bg-primary/5 transition-all group"
-                                            >
+                                            <div key={stock.id} className="p-3 bg-gray-50 border border-gray-200 rounded-xl hover:border-primary hover:bg-primary/5 transition-all group">
                                                 <p className="text-xs font-bold text-gray-800 truncate group-hover:text-primary">{stock.products?.productName || 'Producto'}</p>
                                                 <p className="text-[10px] text-gray-500 mt-0.5">Stock: {stock.currentQuantity}</p>
-                                                <p className="text-xs font-bold text-green-600 mt-1">${(stock.salePrice || stock.buyingPrice || 0).toLocaleString()}</p>
-                                            </button>
+                                                <div className="flex gap-1 mt-1.5">
+                                                    <button
+                                                        onClick={() => addProductToCart(stock, 1)}
+                                                        className="flex-1 text-[9px] font-bold py-1 px-1 rounded bg-green-50 text-green-700 border border-green-200 hover:bg-green-100"
+                                                    >
+                                                        P1: ${(stock.sellingPrice || stock.buyingPrice || 0).toLocaleString()}
+                                                    </button>
+                                                    {(stock.sellingPrice2 ?? 0) > 0 && (
+                                                        <button
+                                                            onClick={() => addProductToCart(stock, 2)}
+                                                            className="flex-1 text-[9px] font-bold py-1 px-1 rounded bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100"
+                                                        >
+                                                            P2: ${stock.sellingPrice2.toLocaleString()}
+                                                        </button>
+                                                    )}
+                                                    {(stock.sellingPrice3 ?? 0) > 0 && (
+                                                        <button
+                                                            onClick={() => addProductToCart(stock, 3)}
+                                                            className="flex-1 text-[9px] font-bold py-1 px-1 rounded bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+                                                        >
+                                                            P3: ${stock.sellingPrice3.toLocaleString()}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
                                         ))}
                                 </div>
                             </div>
