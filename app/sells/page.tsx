@@ -81,13 +81,8 @@ export default function SellsPage() {
   const [activeTab, setActiveTab] = useState<'products' | 'cart'>('products')
 
   // Cart & Form State
-  const [selectedItems, setSelectedItems] = useState<SellItem[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("natus_cart")
-      return saved ? JSON.parse(saved) : []
-    }
-    return []
-  })
+  const [selectedItems, setSelectedItems] = useState<SellItem[]>([])
+  const [cartLoaded, setCartLoaded] = useState(false)
   const [formData, setFormData] = useState(() => {
     return {
       customerId: "",
@@ -115,10 +110,23 @@ export default function SellsPage() {
   const stocksRepository = new StocksRepository(supabase)
   const categoriesRepository = new CategoriesRepository(supabase)
 
+  // --- LOAD CART FROM LOCALSTORAGE ---
+  useEffect(() => {
+    const saved = localStorage.getItem("natus_cart")
+    if (saved) {
+      try {
+        setSelectedItems(JSON.parse(saved))
+      } catch {}
+    }
+    setCartLoaded(true)
+  }, [])
+
   // --- SAVE CART TO LOCALSTORAGE ---
   useEffect(() => {
-    localStorage.setItem("natus_cart", JSON.stringify(selectedItems))
-  }, [selectedItems])
+    if (cartLoaded) {
+      localStorage.setItem("natus_cart", JSON.stringify(selectedItems))
+    }
+  }, [selectedItems, cartLoaded])
 
   // --- INITIALIZATION ---
   useEffect(() => {

@@ -59,6 +59,7 @@ export default function CargarMercanciaPage() {
 
     // Cart
     const [cart, setCart] = useState<CartItem[]>([])
+    const [cartLoaded, setCartLoaded] = useState(false)
 
     // History filter
     const [historyVendorFilter, setHistoryVendorFilter] = useState<string>("all")
@@ -84,6 +85,24 @@ export default function CargarMercanciaPage() {
     useEffect(() => {
         loadData()
     }, [])
+
+    // --- LOAD CART FROM LOCALSTORAGE ---
+    useEffect(() => {
+        const saved = localStorage.getItem("natus_mercancia_cart")
+        if (saved) {
+            try {
+                setCart(JSON.parse(saved))
+            } catch {}
+        }
+        setCartLoaded(true)
+    }, [])
+
+    // --- SAVE CART TO LOCALSTORAGE ---
+    useEffect(() => {
+        if (cartLoaded) {
+            localStorage.setItem("natus_mercancia_cart", JSON.stringify(cart))
+        }
+    }, [cart, cartLoaded])
 
     const loadData = async () => {
         setLoading(true)
@@ -183,7 +202,10 @@ export default function CargarMercanciaPage() {
         setCart(cart.filter(c => c.product.id !== productId))
     }
 
-    const clearCart = () => setCart([])
+    const clearCart = () => {
+        setCart([])
+        localStorage.removeItem("natus_mercancia_cart")
+    }
 
     const cartTotal = cart.reduce((sum, item) => sum + (item.quantity * item.unitCost), 0)
     const cartTotalSelling = cart.reduce((sum, item) => sum + (item.quantity * (item.sellingPrice || 0)), 0)
@@ -231,6 +253,7 @@ export default function CargarMercanciaPage() {
             })
 
             setCart([])
+            localStorage.removeItem("natus_mercancia_cart")
             setVendorId("")
             setReferenceCode("")
             setNotes("")
