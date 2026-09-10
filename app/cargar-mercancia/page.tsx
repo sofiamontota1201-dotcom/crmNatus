@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog"
 import { supabase } from "@/lib/supabase"
 import { createProductAction } from "@/app/actions/products"
+import { isNumericCodeName } from "@/lib/utils/product"
 import { toCamelCaseKeys } from "@/lib/utils/case"
 import type { Product, Vendor, MerchandiseLoad } from "@/types/domain"
 import { Truck, Search, Plus, Trash2, CheckCircle, Package, DollarSign, ShoppingCart, Loader2, Clock, Eye, Filter, Check, ChevronsUpDown, X } from "lucide-react"
@@ -142,6 +143,7 @@ export default function CargarMercanciaPage() {
         if (categoryFilter !== "all") {
             filtered = filtered.filter(p => p.categoryId?.toString() === categoryFilter)
         }
+        filtered = filtered.filter(p => !isNumericCodeName(p.productName))
 
         // Filter by search term
         if (searchTerm.trim()) {

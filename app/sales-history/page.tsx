@@ -25,6 +25,7 @@ import { Search, ShoppingBag, User, Calendar, DollarSign, ChevronRight, Package,
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { parseLocalDate, todayLocalISO } from "@/lib/utils/date"
+import { isNumericCodeName } from "@/lib/utils/product"
 import { useToast } from "@/hooks/use-toast"
 
 interface CartItem {
@@ -564,6 +565,64 @@ export default function SalesHistoryPage() {
     const getPaymentMethodName = (id: number) => {
         const methods = ["Efectivo", "Tarjeta", "Transferencia"]
         return methods[id] || "Otro"
+    }
+
+    // --- ELIMINAR PRODUCTO DE FACTURA ---
+    const handleRemoveDetail = async (detail: any) => {
+        if (!selectedSale) return
+        if (!confirm(`¿Eliminar "${detail.stock?.product?.productName || 'Producto'}" de la factura #${selectedSale.id}?`)) return
+
+        setUpdating(true)
+        try {
+            // 1. Revertir stock
+            if (detail.stockId && detail.soldQuantity) {
+                try {
+                    const currentStock = await stocksRepository.getById(detail.stockId)
+                    if (currentStock) {
+                        const newQty = (currentStock.currentQuantity || 0) + detail.soldQuantity
+                        await stocksRepository.update(detail.stockId, { currentQuantity: newQty } as any)
+                    }
+                } catch (stockErr) {
+                    console.error("Error reverting stock:", detail.stockId, stockErr)
+                }
+            }
+
+            // 2. Eliminar el detalle
+            await sellsRepository.removeDetail(detail.id)
+
+            // 3. Recalcular total de la venta
+            const newDetails = (selectedSale.details || []).filter((d: any) => d.id !== detail.id)
+            const newTotal = newDetails.reduce((sum: number, d: any) => sum + (d.totalSoldPrice || (d.soldQuantity * d.soldPrice) || 0), 0)
+            const newDiscount = newDetails.reduce((sum: number, d: any) => sum + (d.discountAmount || 0), 0)
+            await sellsRepository.update(selectedSale.id, {
+                totalAmount: newTotal,
+                discountAmount: newDiscount,
+            })
+
+            // 4. Actualizar estado local
+            setSelectedSale((prev: any) => ({
+                ...prev,
+                details: newDetails,
+                totalAmount: newTotal,
+                discountAmount: newDiscount,
+            }))
+
+            toast({
+                title: "Producto Eliminado",
+                description: `"${detail.stock?.product?.productName || 'Producto'}" fue removido de la factura.`,
+            })
+
+            fetchSales()
+        } catch (error) {
+            console.error(error)
+            toast({
+                title: "Error",
+                description: "No se pudo eliminar el producto de la factura.",
+                variant: "destructive",
+            })
+        } finally {
+            setUpdating(false)
+        }
     }
 
     // --- PDF GENERATION HELPERS ---
@@ -1150,6 +1209,9 @@ export default function SalesHistoryPage() {
                                                             <th className="p-3 text-center text-[10px] font-bold text-amber-500 uppercase tracking-wider w-[12%]">% Desc.</th>
                                                         )}
                                                         <th className="p-3 text-right text-[10px] font-bold text-gray-500 uppercase tracking-wider w-[23%]">Subtotal</th>
+                                                        {(selectedSale.paymentStatus === 0 || selectedSale.paymentStatus === 1) && (
+                                                            <th className="p-3 text-center text-[10px] font-bold text-red-400 uppercase tracking-wider w-[5%]"></th>
+                                                        )}
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-gray-100">
@@ -1173,6 +1235,17 @@ export default function SalesHistoryPage() {
                                                                 </td>
                                                             )}
                                                             <td className="p-3 text-right font-bold text-gray-800">${((quoteCalculations?.lines[idx]?.lineTotal ?? (detail.totalSoldPrice ?? (detail.soldQuantity * detail.soldPrice))) || 0).toLocaleString()}</td>
+                                                            {(selectedSale.paymentStatus === 0 || selectedSale.paymentStatus === 1) && (
+                                                                <td className="p-3 text-center">
+                                                                    <button
+                                                                        onClick={() => handleRemoveDetail(detail)}
+                                                                        disabled={updating}
+                                                                        className="h-7 w-7 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-500 flex items-center justify-center transition-colors disabled:opacity-50"
+                                                                    >
+                                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                                    </button>
+                                                                </td>
+                                                            )}
                                                         </tr>
                                                     ))}
                                                 </tbody>
@@ -1183,9 +1256,20 @@ export default function SalesHistoryPage() {
                                                 {selectedSale.details?.map((detail: any, idx: number) => (
                                                     <div key={idx} className="p-4 space-y-3">
                                                         {/* Nombre del producto */}
-                                                        <p className="font-semibold text-sm text-gray-800 leading-tight">
-                                                            {detail.stock?.product?.productName || "Producto Desconocido"}
-                                                        </p>
+                                                        <div className="flex items-start justify-between gap-2">
+                                                            <p className="font-semibold text-sm text-gray-800 leading-tight flex-1">
+                                                                {detail.stock?.product?.productName || "Producto Desconocido"}
+                                                            </p>
+                                                            {(selectedSale.paymentStatus === 0 || selectedSale.paymentStatus === 1) && (
+                                                                <button
+                                                                    onClick={() => handleRemoveDetail(detail)}
+                                                                    disabled={updating}
+                                                                    className="h-7 w-7 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-500 flex items-center justify-center transition-colors shrink-0 disabled:opacity-50"
+                                                                >
+                                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                                </button>
+                                                            )}
+                                                        </div>
                                                         {/* Fila de datos alineados */}
                                                         <div className="grid grid-cols-2 gap-2 text-xs">
                                                             <div className="bg-gray-50 rounded-lg p-2 text-center">
@@ -1436,10 +1520,10 @@ export default function SalesHistoryPage() {
                                 <Label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 block">Productos Disponibles</Label>
                                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-h-48 overflow-y-auto scrollbar-thin">
                                     {stocks
-                                        .filter((s: any) => {
-                                            const name = s.products?.productName || ""
-                                            return name.toLowerCase().includes(catalogSearch.toLowerCase())
-                                        })
+                                       .filter((s: any) => {
+                                           const name = s.products?.productName || ""
+                                           return name.toLowerCase().includes(catalogSearch.toLowerCase()) && !isNumericCodeName(name)
+                                       })
                                         .map((stock: any) => (
                                             <button
                                                 key={stock.id}

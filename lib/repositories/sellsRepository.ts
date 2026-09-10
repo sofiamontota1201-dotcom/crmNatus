@@ -166,6 +166,14 @@ export class SellsRepository {
     }
   }
 
+  async removeDetail(id: number): Promise<void> {
+    const { error } = await this.client
+      .from('sell_details')
+      .delete()
+      .eq('id', id)
+    if (error) throw error
+  }
+
   async remove(id: number): Promise<void> {
     // Delete details first to avoid foreign key constraints
     const { error: detailsError } = await this.client

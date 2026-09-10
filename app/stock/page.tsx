@@ -31,6 +31,7 @@ import { Plus, Edit, Trash2, Package, AlertTriangle, Search, X, RefreshCcw, Tag,
 import { useToast } from "@/hooks/use-toast"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
+import { isNumericCodeName } from "@/lib/utils/product"
 
 export default function StockPage() {
   const router = useRouter()
@@ -282,13 +283,14 @@ export default function StockPage() {
     const matchesSearch = (stock.products?.productName || "").toLowerCase().includes(mainSearchTerm.toLowerCase()) ||
       (stock.productCode || "").toLowerCase().includes(mainSearchTerm.toLowerCase())
     const matchesCategory = mainSelectedCategory === "all" || stock.categoryId?.toString() === mainSelectedCategory
-    return matchesSearch && matchesCategory
+    return matchesSearch && matchesCategory && !isNumericCodeName(stock.products?.productName)
   })
 
   // Modal product filter
   const modalFilteredProducts = products.filter(p =>
     (!searchTerm || p.productName.toLowerCase().includes(searchTerm.toLowerCase())) &&
-    (!selectedCategory || selectedCategory === "all" || p.categoryId?.toString() === selectedCategory)
+    (!selectedCategory || selectedCategory === "all" || p.categoryId?.toString() === selectedCategory) &&
+    !isNumericCodeName(p.productName)
   )
 
   if (loading && stocks.length === 0) return (

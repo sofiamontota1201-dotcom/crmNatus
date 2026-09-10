@@ -37,6 +37,7 @@ import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { todayLocalISO } from "@/lib/utils/date"
+import { isNumericCodeName } from "@/lib/utils/product"
 
 // --- TYPES ---
 interface SellItem {
@@ -210,6 +211,16 @@ export default function SellsPage() {
 
     item.quantity = newQty
     item.total = calculateItemTotal(item.price, item.quantity, item.discountPercent)
+    setSelectedItems(newItems)
+  }
+
+  const updatePrice = (index: number, newPrice: number) => {
+    const newItems = [...selectedItems]
+    const item = newItems[index]
+
+    const validPrice = Math.max(0, newPrice)
+    item.price = validPrice
+    item.total = calculateItemTotal(validPrice, item.quantity, item.discountPercent)
     setSelectedItems(newItems)
   }
 
@@ -424,7 +435,7 @@ export default function SellsPage() {
     const matchSearch = stock.products?.productName.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
       stock.productCode?.toLowerCase().includes(productSearchTerm.toLowerCase())
     const matchCat = selectedCategory === "all" || stock.categoryId?.toString() === selectedCategory
-    return matchSearch && matchCat
+    return matchSearch && matchCat && !isNumericCodeName(stock.products?.productName)
   })
 
   return (
@@ -714,7 +725,13 @@ export default function SellsPage() {
                       </div>
                       <div className="flex flex-col gap-1.5">
                         <span className="text-gray-500 font-medium">P. Unitario</span>
-                        <span className="text-gray-700 font-semibold text-sm">${item.price.toLocaleString()}</span>
+                        <Input
+                          type="number"
+                          className="h-7 bg-gray-50 border-gray-200 text-sm font-semibold p-1"
+                          value={item.price}
+                          min={0}
+                          onChange={(e) => updatePrice(index, parseFloat(e.target.value) || 0)}
+                        />
                       </div>
                     </div>
                     {/* Discount row */}
@@ -776,8 +793,14 @@ export default function SellsPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-center text-[11px] text-gray-500 py-1.5 px-3">{item.unit}</TableCell>
-                      <TableCell className="text-right text-gray-700 text-[11px] py-1.5 px-3">
-                        ${item.price.toLocaleString()}
+                      <TableCell className="text-right py-1.5 px-3">
+                        <Input
+                          type="number"
+                          className="w-20 h-6 bg-gray-50 border-gray-200 text-right text-[11px] p-0"
+                          value={item.price}
+                          min={0}
+                          onChange={(e) => updatePrice(index, parseFloat(e.target.value) || 0)}
+                        />
                       </TableCell>
                       <TableCell className="text-center py-1.5 px-3">
                         <Input

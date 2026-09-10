@@ -25,6 +25,7 @@ import { useToast } from "@/hooks/use-toast"
 import { createProductAction, updateProductAction, deleteProductAction, updateProductSellingPriceAction } from "@/app/actions/products"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
+import { isNumericCodeName } from "@/lib/utils/product"
 
 interface ProductsClientProps {
     initialProducts: Product[]
@@ -180,7 +181,8 @@ export function ProductsClient({ initialProducts, categories, vendors }: Product
         const matchesStock = stockFilter === "all"
             || (stockFilter === "with" && totalStock > 0)
             || (stockFilter === "without" && totalStock === 0)
-        return matchesSearch && matchesCategory && matchesVendor && matchesStock
+        const isNumericCode = isNumericCodeName(product.productName)
+        return matchesSearch && matchesCategory && matchesVendor && matchesStock && !isNumericCode
     })
 
     return (
