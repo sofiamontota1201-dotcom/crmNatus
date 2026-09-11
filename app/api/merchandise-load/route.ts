@@ -107,9 +107,6 @@ export async function POST(request: NextRequest) {
                     quantity: item.quantity,
                     unit_cost: item.unitCost,
                     total_cost: item.quantity * item.unitCost,
-                    selling_price: item.sellingPrice || 0,
-                    selling_price_2: item.sellingPrice2 || 0,
-                    selling_price_3: item.sellingPrice3 || 0,
                 })
         }
 
@@ -138,7 +135,8 @@ export async function GET(request: NextRequest) {
                 vendors:vendors(name, phone),
                 items:merchandise_load_items(
                     *,
-                    products:products(product_name, sku, barcode)
+                    products:products(product_name, sku, barcode),
+                    stocks:stocks(selling_price, selling_price_2, selling_price_3)
                 )
             `)
             .order('id', { ascending: false })
