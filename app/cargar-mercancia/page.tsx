@@ -452,16 +452,19 @@ export default function CargarMercanciaPage() {
                                             )}>
                                                 {product.currentStock || 0}
                                             </span>
-                                            {sellingPrices[product.id] ? (
-                                                <div className="flex gap-1">
-                                                    <span className="text-[8px] font-bold text-blue-600 bg-blue-50 px-1 rounded">P1:${sellingPrices[product.id].p1.toLocaleString()}</span>
-                                                    {sellingPrices[product.id].p2 > 0 && <span className="text-[8px] font-bold text-purple-600 bg-purple-50 px-1 rounded">P2:${sellingPrices[product.id].p2.toLocaleString()}</span>}
-                                                    {sellingPrices[product.id].p3 > 0 && <span className="text-[8px] font-bold text-amber-600 bg-amber-50 px-1 rounded">P3:${sellingPrices[product.id].p3.toLocaleString()}</span>}
-                                                </div>
-                                            ) : (
-                                                <Plus className="w-3 h-3 text-primary" />
+                                            {productPrices[product.id] > 0 && (
+                                                <span className="text-[8px] font-bold text-gray-600 bg-gray-100 px-1 rounded">C:${productPrices[product.id].toLocaleString()}</span>
                                             )}
                                         </div>
+                                        {sellingPrices[product.id] ? (
+                                            <div className="flex gap-1 mt-1">
+                                                <span className="text-[8px] font-bold text-blue-600 bg-blue-50 px-1 rounded">P1:${sellingPrices[product.id].p1.toLocaleString()}</span>
+                                                {sellingPrices[product.id].p2 > 0 && <span className="text-[8px] font-bold text-purple-600 bg-purple-50 px-1 rounded">P2:${sellingPrices[product.id].p2.toLocaleString()}</span>}
+                                                {sellingPrices[product.id].p3 > 0 && <span className="text-[8px] font-bold text-amber-600 bg-amber-50 px-1 rounded">P3:${sellingPrices[product.id].p3.toLocaleString()}</span>}
+                                            </div>
+                                        ) : (
+                                            <div className="mt-1"><Plus className="w-3 h-3 text-primary" /></div>
+                                        )}
                                     </div>
                                 ))}
                             </div>
