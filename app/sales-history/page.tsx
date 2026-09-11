@@ -191,22 +191,39 @@ export default function SalesHistoryPage() {
             }
             const sell = await sellsRepository.create(sellData as any)
 
-            for (const item of newSaleItems) {
-                const stock = stocks.find((s: any) => s.id.toString() === item.stockId)
-                if (!stock) continue
-                await sellsRepository.createDetail({
-                    stockId: Number(item.stockId),
-                    sellId: sell.id,
-                    soldQuantity: item.quantity,
-                    buyPrice: stock.buyingPrice || 0,
-                    soldPrice: item.price,
-                    totalBuyPrice: (stock.buyingPrice || 0) * item.quantity,
-                    totalSoldPrice: item.total,
-                    discount: 0,
-                    discountType: 2,
-                    discountAmount: 0,
-                } as any)
-                await stocksRepository.update(stock.id, { currentQuantity: stock.currentQuantity - item.quantity } as any)
+            try {
+                const details = newSaleItems.map(item => {
+                    const stock = stocks.find((s: any) => s.id.toString() === item.stockId)
+                    if (!stock) throw new Error(`Producto sin stock: ${item.productName}`)
+                    return {
+                        stockId: Number(item.stockId),
+                        sellId: sell.id,
+                        soldQuantity: item.quantity,
+                        buyPrice: stock.buyingPrice || 0,
+                        soldPrice: item.price,
+                        totalBuyPrice: (stock.buyingPrice || 0) * item.quantity,
+                        totalSoldPrice: item.total,
+                        discount: 0,
+                        discountType: 2,
+                        discountAmount: 0,
+                    }
+                })
+
+                const stockUpdates = newSaleItems.map(item => {
+                    const stock = stocks.find((s: any) => s.id.toString() === item.stockId)
+                    return { id: stock.id, currentQuantity: stock.currentQuantity - item.quantity }
+                })
+
+                await Promise.all([
+                    sellsRepository.createDetailsBatch(details as any),
+                    stocksRepository.batchUpdateQuantities(stockUpdates),
+                ]).catch(async (e) => {
+                    await sellsRepository.remove(sell.id)
+                    throw e
+                })
+            } catch (e) {
+                await sellsRepository.remove(sell.id)
+                throw e
             }
 
             toast({ title: "Venta Creada", description: `Venta #${sell.id} creada para el ${selectedDate}` })

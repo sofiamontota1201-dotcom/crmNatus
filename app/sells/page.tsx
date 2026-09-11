@@ -384,7 +384,10 @@ export default function SellsPage() {
       await Promise.all([
         sellsRepository.createDetailsBatch(details),
         stocksRepository.batchUpdateQuantities(stockUpdates),
-      ])
+      ]).catch(async (e) => {
+        await sellsRepository.remove(sell.id)
+        throw e
+      })
 
       const customer = customers.find(c => c.id.toString() === formData.customerId)
       const jsPDFMod = await import('jspdf')
@@ -499,7 +502,10 @@ export default function SellsPage() {
       await Promise.all([
         sellsRepository.createDetailsBatch(details),
         stocksRepository.batchUpdateQuantities(stockUpdates),
-      ])
+      ]).catch(async (e) => {
+        await sellsRepository.remove(sell.id)
+        throw e
+      })
 
       toast({ title: "Venta Cargada", description: `Venta #${sell.id} cargada al historial. Pendiente de facturación.` })
       clearCart()

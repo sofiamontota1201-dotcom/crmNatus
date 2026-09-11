@@ -72,33 +72,62 @@ export async function POST(request: NextRequest) {
                         .eq('id', stockId)
                 }
             } else {
-                const productCode = `STOCK-${Date.now().toString().slice(-8)}`
-                const chalanNo = `CH-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Date.now().toString().slice(-4)}`
-
-                const { data: newStock, error: stockError } = await adminClient
+                // Reutilizar la fila de stock existente del producto: las unidades se
+                // suman y las referencias de compra quedan en merchandise_load_items
+                const { data: existingStocks } = await adminClient
                     .from('stocks')
-                    .insert({
-                        product_id: item.productId,
-                        vendor_id: body.vendorId || null,
-                        product_code: productCode,
-                        chalan_no: chalanNo,
-                        buying_price: item.unitCost,
-                        selling_price: item.sellingPrice || 0,
-                        selling_price_2: item.sellingPrice2 || 0,
-                        selling_price_3: item.sellingPrice3 || 0,
-                        stock_quantity: item.quantity,
-                        current_quantity: item.quantity,
+                    .select('id, current_quantity, stock_quantity')
+                    .eq('product_id', item.productId)
+                    .eq('status', 1)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
 
-                        status: 1,
-                    })
-                    .select('id')
-                    .single()
+                const existing = existingStocks?.[0]
 
-                if (stockError) throw stockError
-                stockId = newStock.id
+                if (existing) {
+                    const { error: updateError } = await adminClient
+                        .from('stocks')
+                        .update({
+                            current_quantity: existing.current_quantity + item.quantity,
+                            stock_quantity: existing.stock_quantity + item.quantity,
+                            buying_price: item.unitCost,
+                            ...(item.sellingPrice > 0 ? { selling_price: item.sellingPrice } : {}),
+                            ...(item.sellingPrice2 > 0 ? { selling_price_2: item.sellingPrice2 } : {}),
+                            ...(item.sellingPrice3 > 0 ? { selling_price_3: item.sellingPrice3 } : {}),
+                        })
+                        .eq('id', existing.id)
+
+                    if (updateError) throw updateError
+                    stockId = existing.id
+                } else {
+                    const productCode = `STOCK-${Date.now().toString().slice(-8)}`
+                    const chalanNo = `CH-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Date.now().toString().slice(-4)}`
+
+                    const { data: newStock, error: stockError } = await adminClient
+                        .from('stocks')
+                        .insert({
+                            product_id: item.productId,
+                            vendor_id: body.vendorId || null,
+                            product_code: productCode,
+                            chalan_no: chalanNo,
+                            buying_price: item.unitCost,
+                            selling_price: item.sellingPrice || 0,
+                            selling_price_2: item.sellingPrice2 || 0,
+                            selling_price_3: item.sellingPrice3 || 0,
+                            stock_quantity: item.quantity,
+                            current_quantity: item.quantity,
+
+                            status: 1,
+                        })
+                        .select('id')
+                        .single()
+
+                    if (stockError) throw stockError
+                    stockId = newStock.id
+                }
             }
 
-            await adminClient
+            const { error: itemError } = await adminClient
                 .from('merchandise_load_items')
                 .insert({
                     load_id: load.id,
@@ -108,6 +137,8 @@ export async function POST(request: NextRequest) {
                     unit_cost: item.unitCost,
                     total_cost: item.quantity * item.unitCost,
                 })
+
+            if (itemError) throw itemError
         }
 
         return NextResponse.json({
