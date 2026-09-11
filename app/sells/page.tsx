@@ -358,11 +358,10 @@ export default function SellsPage() {
       }
       const sell = await sellsRepository.create(sellData as any)
 
-      for (const item of selectedItems) {
+      const details = selectedItems.map(item => {
         const stock = stocks.find((s) => s.id.toString() === item.stockId)
-        if (!stock) continue
-        const itemDiscountAmount = item.price * item.quantity - item.total
-        await sellsRepository.createDetail({
+        if (!stock) return null
+        return {
           stockId: Number(item.stockId),
           sellId: sell.id,
           soldQuantity: item.quantity,
@@ -372,10 +371,20 @@ export default function SellsPage() {
           totalSoldPrice: item.total,
           discount: item.discountPercent,
           discountType: 2,
-          discountAmount: itemDiscountAmount,
-        } as any)
-        await stocksRepository.update(stock.id, { currentQuantity: stock.currentQuantity - item.quantity } as any)
-      }
+          discountAmount: item.price * item.quantity - item.total,
+        }
+      }).filter(Boolean) as any[]
+
+      const stockUpdates = selectedItems.map(item => {
+        const stock = stocks.find((s) => s.id.toString() === item.stockId)
+        if (!stock) return null
+        return { id: stock.id, currentQuantity: stock.currentQuantity - item.quantity }
+      }).filter(Boolean) as { id: number; currentQuantity: number }[]
+
+      await Promise.all([
+        sellsRepository.createDetailsBatch(details),
+        stocksRepository.batchUpdateQuantities(stockUpdates),
+      ])
 
       const customer = customers.find(c => c.id.toString() === formData.customerId)
       const jsPDFMod = await import('jspdf')
@@ -464,11 +473,10 @@ export default function SellsPage() {
       }
       const sell = await sellsRepository.create(sellData as any)
 
-      for (const item of selectedItems) {
+      const details = selectedItems.map(item => {
         const stock = stocks.find((s) => s.id.toString() === item.stockId)
-        if (!stock) continue
-        const itemDiscountAmount = item.price * item.quantity - item.total
-        await sellsRepository.createDetail({
+        if (!stock) return null
+        return {
           stockId: Number(item.stockId),
           sellId: sell.id,
           soldQuantity: item.quantity,
@@ -478,10 +486,20 @@ export default function SellsPage() {
           totalSoldPrice: item.total,
           discount: item.discountPercent,
           discountType: 2,
-          discountAmount: itemDiscountAmount,
-        } as any)
-        await stocksRepository.update(stock.id, { currentQuantity: stock.currentQuantity - item.quantity } as any)
-      }
+          discountAmount: item.price * item.quantity - item.total,
+        }
+      }).filter(Boolean) as any[]
+
+      const stockUpdates = selectedItems.map(item => {
+        const stock = stocks.find((s) => s.id.toString() === item.stockId)
+        if (!stock) return null
+        return { id: stock.id, currentQuantity: stock.currentQuantity - item.quantity }
+      }).filter(Boolean) as { id: number; currentQuantity: number }[]
+
+      await Promise.all([
+        sellsRepository.createDetailsBatch(details),
+        stocksRepository.batchUpdateQuantities(stockUpdates),
+      ])
 
       toast({ title: "Venta Cargada", description: `Venta #${sell.id} cargada al historial. Pendiente de facturación.` })
       clearCart()

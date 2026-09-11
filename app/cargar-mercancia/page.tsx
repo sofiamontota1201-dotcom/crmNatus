@@ -110,7 +110,7 @@ export default function CargarMercanciaPage() {
             const [productsRes, vendorsRes, categoriesRes, historyRes] = await Promise.all([
                 supabase.from('products').select(`
                     id, product_name, sku, barcode, category_id, status,
-                    stocks(product_id, current_quantity, buying_price)
+                    stocks(product_id, current_quantity, buying_price, selling_price, selling_price_2, selling_price_3)
                 `).eq('status', 1).order('product_name'),
                 supabase.from('vendors').select('id, name').order('name'),
                 supabase.from('categories').select('id, name').eq('status', 1).order('name'),
