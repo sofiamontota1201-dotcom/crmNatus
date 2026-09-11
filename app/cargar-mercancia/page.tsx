@@ -434,36 +434,36 @@ export default function CargarMercanciaPage() {
 
                         {/* Grid de productos - SCROLLABLE */}
                         <div className="flex-1 overflow-y-auto scrollbar-thin bg-white rounded-xl border border-gray-200 p-3">
-                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                                 {filteredProducts.map(product => (
                                     <div
                                         key={product.id}
                                         onClick={() => addToCart(product)}
-                                        className="text-left p-2.5 rounded-lg border border-gray-200 hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer"
+                                        className="text-left p-3.5 rounded-xl border border-gray-200 hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer"
                                     >
-                                        <p className="text-xs font-black text-black whitespace-normal break-words line-clamp-2">{product.productName}</p>
-                                        <p className="text-[9px] text-gray-500 mt-0.5 truncate">
+                                        <p className="text-sm font-black text-black whitespace-normal break-words line-clamp-2">{product.productName}</p>
+                                        <p className="text-[11px] text-gray-500 mt-1 truncate">
                                             {product.sku || product.barcode || `#${product.id}`}
                                         </p>
-                                        <div className="flex items-center justify-between mt-1.5">
+                                        <div className="flex items-center justify-between mt-2">
                                             <span className={cn(
-                                                "text-[9px] font-bold px-1.5 py-0.5 rounded",
+                                                "text-[11px] font-bold px-2 py-0.5 rounded",
                                                 product.currentStock > 0 ? "bg-green-50 text-green-600" : "bg-red-50 text-red-500"
                                             )}>
-                                                {product.currentStock || 0}
+                                                Stock: {product.currentStock || 0}
                                             </span>
                                             {productPrices[product.id] > 0 && (
-                                                <span className="text-[8px] font-bold text-gray-600 bg-gray-100 px-1 rounded">C:${productPrices[product.id].toLocaleString()}</span>
+                                                <span className="text-[11px] font-bold text-gray-600 bg-gray-100 px-2 py-0.5 rounded">Costo: ${productPrices[product.id].toLocaleString()}</span>
                                             )}
                                         </div>
                                         {sellingPrices[product.id] ? (
-                                            <div className="flex gap-1 mt-1">
-                                                <span className="text-[8px] font-bold text-blue-600 bg-blue-50 px-1 rounded">P1:${sellingPrices[product.id].p1.toLocaleString()}</span>
-                                                {sellingPrices[product.id].p2 > 0 && <span className="text-[8px] font-bold text-purple-600 bg-purple-50 px-1 rounded">P2:${sellingPrices[product.id].p2.toLocaleString()}</span>}
-                                                {sellingPrices[product.id].p3 > 0 && <span className="text-[8px] font-bold text-amber-600 bg-amber-50 px-1 rounded">P3:${sellingPrices[product.id].p3.toLocaleString()}</span>}
+                                            <div className="flex flex-wrap gap-1.5 mt-2">
+                                                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">P1: ${sellingPrices[product.id].p1.toLocaleString()}</span>
+                                                {sellingPrices[product.id].p2 > 0 && <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded">P2: ${sellingPrices[product.id].p2.toLocaleString()}</span>}
+                                                {sellingPrices[product.id].p3 > 0 && <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">P3: ${sellingPrices[product.id].p3.toLocaleString()}</span>}
                                             </div>
                                         ) : (
-                                            <div className="mt-1"><Plus className="w-3 h-3 text-primary" /></div>
+                                            <div className="mt-2"><Plus className="w-4 h-4 text-primary" /></div>
                                         )}
                                     </div>
                                 ))}
