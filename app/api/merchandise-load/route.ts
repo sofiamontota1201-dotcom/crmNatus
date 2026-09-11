@@ -91,9 +91,9 @@ export async function POST(request: NextRequest) {
                             current_quantity: existing.current_quantity + item.quantity,
                             stock_quantity: existing.stock_quantity + item.quantity,
                             buying_price: item.unitCost,
-                            ...(item.sellingPrice > 0 ? { selling_price: item.sellingPrice } : {}),
-                            ...(item.sellingPrice2 > 0 ? { selling_price_2: item.sellingPrice2 } : {}),
-                            ...(item.sellingPrice3 > 0 ? { selling_price_3: item.sellingPrice3 } : {}),
+                            ...((item.sellingPrice ?? 0) > 0 ? { selling_price: item.sellingPrice } : {}),
+                            ...((item.sellingPrice2 ?? 0) > 0 ? { selling_price_2: item.sellingPrice2 } : {}),
+                            ...((item.sellingPrice3 ?? 0) > 0 ? { selling_price_3: item.sellingPrice3 } : {}),
                         })
                         .eq('id', existing.id)
 

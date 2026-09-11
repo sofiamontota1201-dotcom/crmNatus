@@ -5,6 +5,7 @@ const toSnake = (s: string) => s
   .replace(/([A-Z])/g, '_$1')
   .replace(/[-\s]+/g, '_')
   .toLowerCase()
+  .replace(/([a-z])(\d)/g, '$1_$2')
 
 function isPlainObject(value: any): value is Record<string, any> {
   return Object.prototype.toString.call(value) === '[object Object]'
