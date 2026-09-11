@@ -31,6 +31,7 @@ import { SellsRepository } from "@/lib/repositories/sellsRepository"
 import { CustomersRepository } from "@/lib/repositories/customersRepository"
 import { StocksRepository } from "@/lib/repositories/stocksRepository"
 import { CategoriesRepository } from "@/lib/repositories/categoriesRepository"
+import { CartsRepository } from "@/lib/repositories/cartsRepository"
 import { Plus, Trash2, Search, Package, UserPlus, CreditCard, Banknote, Minus, ShoppingCart, RefreshCcw, ChevronDown, FileText, Receipt } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
@@ -109,24 +110,77 @@ export default function SellsPage() {
   const customersRepository = new CustomersRepository(supabase)
   const stocksRepository = new StocksRepository(supabase)
   const categoriesRepository = new CategoriesRepository(supabase)
+  const cartsRepository = new CartsRepository(supabase)
 
-  // --- LOAD CART FROM LOCALSTORAGE ---
+  // --- LOAD CART FROM SUPABASE (with localStorage fallback) ---
   useEffect(() => {
-    const saved = localStorage.getItem("natus_cart")
-    if (saved) {
+    const loadCart = async () => {
       try {
-        setSelectedItems(JSON.parse(saved))
-      } catch {}
+        const pendingCart = await cartsRepository.getOrCreate()
+        if (pendingCart && Array.isArray(pendingCart.items) && pendingCart.items.length > 0) {
+          setSelectedItems(pendingCart.items)
+          if (pendingCart.customerId) {
+            setFormData(prev => ({
+              ...prev,
+              customerId: pendingCart.customerId?.toString() || "",
+              sellDate: pendingCart.sellDate || todayLocalISO(),
+            }))
+          }
+          if (pendingCart.globalDiscount) {
+            setGlobalDiscount(pendingCart.globalDiscount)
+          }
+        } else {
+          // Fallback: intentar cargar de localStorage si la DB está vacía
+          const saved = localStorage.getItem("natus_cart")
+          if (saved) {
+            try {
+              const parsed = JSON.parse(saved)
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setSelectedItems(parsed)
+              }
+            } catch {}
+          }
+        }
+      } catch (err) {
+        console.error("Error loading cart from DB, falling back to localStorage:", err)
+        const saved = localStorage.getItem("natus_cart")
+        if (saved) {
+          try {
+            setSelectedItems(JSON.parse(saved))
+          } catch {}
+        }
+      }
+      setCartLoaded(true)
     }
-    setCartLoaded(true)
+    loadCart()
   }, [])
 
-  // --- SAVE CART TO LOCALSTORAGE ---
+  // --- SAVE CART TO SUPABASE (debounced) ---
   useEffect(() => {
-    if (cartLoaded) {
-      localStorage.setItem("natus_cart", JSON.stringify(selectedItems))
-    }
-  }, [selectedItems, cartLoaded])
+    if (!cartLoaded) return
+
+    // Siempre guardar en localStorage como respaldo rápido
+    localStorage.setItem("natus_cart", JSON.stringify(selectedItems))
+
+    // Guardar en Supabase con debounce (500ms después del último cambio)
+    const timeoutId = setTimeout(async () => {
+      try {
+        await cartsRepository.save({
+          userId: "",
+          items: selectedItems,
+          customerId: formData.customerId ? Number(formData.customerId) : null,
+          sellDate: formData.sellDate,
+          paymentMethod: Number(formData.paymentMethod),
+          globalDiscount,
+          documentType,
+        })
+      } catch (err) {
+        console.error("Error saving cart to DB:", err)
+      }
+    }, 500)
+
+    return () => clearTimeout(timeoutId)
+  }, [selectedItems, formData, globalDiscount, cartLoaded])
 
   // --- INITIALIZATION ---
   useEffect(() => {
@@ -256,7 +310,9 @@ export default function SellsPage() {
   const clearCart = () => {
     setSelectedItems([])
     setFormData(prev => ({ ...prev, customerId: "" }))
+    setGlobalDiscount("")
     localStorage.removeItem("natus_cart")
+    cartsRepository.clear().catch(console.error)
   }
 
   // --- CALCULATIONS ---
