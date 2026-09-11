@@ -940,7 +940,7 @@ export default function SellsPage() {
                   {selectedItems.map((item, index) => (
                     <TableRow key={`${item.stockId}-${index}`} className="hover:bg-gray-50 border-gray-200">
                       <TableCell className="font-medium text-gray-700 text-[11px] py-1.5 px-3">{item.productCode}</TableCell>
-                      <TableCell className="text-gray-700 text-[11px] py-1.5 px-3 max-w-[180px] truncate" title={item.productName}>
+                      <TableCell className="text-gray-700 text-[11px] py-1.5 px-3 whitespace-normal break-words" title={item.productName}>
                         {item.productName}
                       </TableCell>
                       <TableCell className="text-center py-1.5 px-3">

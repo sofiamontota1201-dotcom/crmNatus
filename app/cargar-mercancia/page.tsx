@@ -446,7 +446,7 @@ export default function CargarMercanciaPage() {
                                         onClick={() => addToCart(product)}
                                         className="text-left p-2.5 rounded-lg border border-gray-200 hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer"
                                     >
-                                        <p className="text-xs font-black text-black truncate">{product.productName}</p>
+                                        <p className="text-xs font-black text-black whitespace-normal break-words line-clamp-2">{product.productName}</p>
                                         <p className="text-[9px] text-gray-500 mt-0.5 truncate">
                                             {product.sku || product.barcode || `#${product.id}`}
                                         </p>
@@ -508,7 +508,7 @@ export default function CargarMercanciaPage() {
                                             <div key={item.product.id} className="p-3 hover:bg-gray-50">
                                                 <div className="flex items-start justify-between mb-2">
                                                     <div className="min-w-0 flex-1">
-                                                        <p className="text-xs font-bold text-gray-800 truncate">{item.product.productName}</p>
+                                                        <p className="text-xs font-bold text-gray-800 whitespace-normal break-words line-clamp-2">{item.product.productName}</p>
                                                     </div>
                                                     <button onClick={() => removeFromCart(item.product.id)} className="text-red-400 hover:text-red-600 ml-2">
                                                         <Trash2 className="w-3 h-3" />
