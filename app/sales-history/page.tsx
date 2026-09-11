@@ -102,6 +102,7 @@ export default function SalesHistoryPage() {
         setNewSaleClientId("")
         setNewSalePaymentMethod("0")
         setCatalogSearch("")
+        setSelectedDate(getDateRange().start)
         setNewSaleOpen(true)
     }
 
@@ -1623,6 +1624,15 @@ export default function SalesHistoryPage() {
                                             ))}
                                         </SelectContent>
                                     </Select>
+                                </div>
+                                <div className="w-56">
+                                    <Label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Fecha de la Venta</Label>
+                                    <input
+                                        type="date"
+                                        value={selectedDate}
+                                        onChange={(e) => setSelectedDate(e.target.value)}
+                                        className="h-11 w-full px-3 rounded-lg border border-gray-200 bg-gray-50 text-sm font-medium text-gray-800 focus:ring-2 focus:ring-primary/40 focus:outline-none"
+                                    />
                                 </div>
                                 <div className="w-56">
                                     <Label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Método de Pago</Label>
