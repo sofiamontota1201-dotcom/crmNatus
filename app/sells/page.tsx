@@ -226,38 +226,23 @@ export default function SellsPage() {
 
   const addProductToCart = (stock: Stock, priceLevel: 1 | 2 | 3 = 1) => {
     const activeDiscount = parseFloat(globalDiscount) || 0
-    const existingIndex = selectedItems.findIndex(item => item.stockId === stock.id.toString())
 
     let selectedPrice = stock.sellingPrice
     if (priceLevel === 2) selectedPrice = stock.sellingPrice2 ?? 0
     if (priceLevel === 3) selectedPrice = stock.sellingPrice3 ?? 0
 
-    if (existingIndex >= 0) {
-      const newItems = [...selectedItems]
-      const currentItem = newItems[existingIndex]
-
-      if (currentItem.quantity + 1 > currentItem.availableStock) {
-        toast({ title: "Stock Máximo", description: "No hay más unidades disponibles", variant: "destructive" })
-        return
-      }
-
-      currentItem.quantity += 1
-      currentItem.total = calculateItemTotal(currentItem.price, currentItem.quantity, currentItem.discountPercent)
-      setSelectedItems(newItems)
-    } else {
-      const newItem: SellItem = {
-        stockId: stock.id.toString(),
-        productName: stock.products?.productName || "Producto",
-        productCode: stock.productCode || "REF",
-        quantity: 1,
-        price: selectedPrice,
-        unit: "UNID",
-        discountPercent: activeDiscount,
-        total: calculateItemTotal(selectedPrice, 1, activeDiscount),
-        availableStock: stock.currentQuantity,
-      }
-      setSelectedItems([...selectedItems, newItem])
+    const newItem: SellItem = {
+      stockId: stock.id.toString(),
+      productName: stock.products?.productName || "Producto",
+      productCode: stock.productCode || "REF",
+      quantity: 1,
+      price: selectedPrice,
+      unit: "UNID",
+      discountPercent: activeDiscount,
+      total: calculateItemTotal(selectedPrice, 1, activeDiscount),
+      availableStock: stock.currentQuantity,
     }
+    setSelectedItems([...selectedItems, newItem])
   }
 
   const updateQuantity = (index: number, delta: number) => {

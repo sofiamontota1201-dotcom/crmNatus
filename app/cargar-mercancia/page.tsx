@@ -180,26 +180,21 @@ export default function CargarMercanciaPage() {
     }, [products, searchTerm, vendorStocks, categoryFilter])
 
     const addToCart = (product: Product & { currentStock?: number }) => {
-        const existing = cart.find(c => c.product.id === product.id)
-        if (existing) {
-            setCart(cart.map(c => c.product.id === product.id ? { ...c, quantity: c.quantity + 1 } : c))
-        } else {
-            const defaultCost = productPrices[product.id] || 0
-            const defaultSell = sellingPrices[product.id]?.p1 || 0
-            const defaultSell2 = sellingPrices[product.id]?.p2 || 0
-            const defaultSell3 = sellingPrices[product.id]?.p3 || 0
-            setCart([...cart, { product, quantity: 1, unitCost: defaultCost, sellingPrice: defaultSell, sellingPrice2: defaultSell2, sellingPrice3: defaultSell3 }])
-        }
+        const defaultCost = productPrices[product.id] || 0
+        const defaultSell = sellingPrices[product.id]?.p1 || 0
+        const defaultSell2 = sellingPrices[product.id]?.p2 || 0
+        const defaultSell3 = sellingPrices[product.id]?.p3 || 0
+        setCart([...cart, { product, quantity: 1, unitCost: defaultCost, sellingPrice: defaultSell, sellingPrice2: defaultSell2, sellingPrice3: defaultSell3 }])
         setSearchTerm("")
         toast({ title: "Agregado", description: `${product.productName} agregado al carrito` })
     }
 
-    const updateCartItem = (productId: number, field: 'quantity' | 'unitCost' | 'sellingPrice' | 'sellingPrice2' | 'sellingPrice3', value: number) => {
-        setCart(cart.map(c => c.product.id === productId ? { ...c, [field]: Math.max(0, value) } : c))
+    const updateCartItem = (index: number, field: 'quantity' | 'unitCost' | 'sellingPrice' | 'sellingPrice2' | 'sellingPrice3', value: number) => {
+        setCart(cart.map((c, i) => i === index ? { ...c, [field]: Math.max(0, value) } : c))
     }
 
-    const removeFromCart = (productId: number) => {
-        setCart(cart.filter(c => c.product.id !== productId))
+    const removeFromCart = (index: number) => {
+        setCart(cart.filter((_, i) => i !== index))
     }
 
     const clearCart = () => {
@@ -504,20 +499,20 @@ export default function CargarMercanciaPage() {
                                     </div>
                                 ) : (
                                     <div className="divide-y divide-gray-100">
-                                        {cart.map(item => (
-                                            <div key={item.product.id} className="p-3 hover:bg-gray-50">
+                                        {cart.map((item, index) => (
+                                            <div key={`cart-${index}`} className="p-3 hover:bg-gray-50">
                                                 <div className="flex items-start justify-between mb-2">
                                                     <div className="min-w-0 flex-1">
                                                         <p className="text-xs font-bold text-gray-800 whitespace-normal break-words line-clamp-2">{item.product.productName}</p>
                                                     </div>
-                                                    <button onClick={() => removeFromCart(item.product.id)} className="text-red-400 hover:text-red-600 ml-2">
+                                                    <button onClick={() => removeFromCart(index)} className="text-red-400 hover:text-red-600 ml-2">
                                                         <Trash2 className="w-3 h-3" />
                                                     </button>
                                                 </div>
                                                 <div className="grid grid-cols-3 gap-1.5 items-center">
                                                     <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
                                                         <button
-                                                            onClick={() => updateCartItem(item.product.id, 'quantity', item.quantity - 1)}
+                                                            onClick={() => updateCartItem(index, 'quantity', item.quantity - 1)}
                                                             className="h-7 w-7 flex items-center justify-center bg-gray-50 hover:bg-gray-100 text-gray-600"
                                                         >
                                                             <span className="text-xs font-bold">-</span>
@@ -526,11 +521,11 @@ export default function CargarMercanciaPage() {
                                                             type="number"
                                                             min="1"
                                                             value={item.quantity}
-                                                            onChange={e => updateCartItem(item.product.id, 'quantity', Number(e.target.value))}
+                                                            onChange={e => updateCartItem(index, 'quantity', Number(e.target.value))}
                                                             className="h-7 w-12 text-center text-xs border-0 bg-white p-0"
                                                         />
                                                         <button
-                                                            onClick={() => updateCartItem(item.product.id, 'quantity', item.quantity + 1)}
+                                                            onClick={() => updateCartItem(index, 'quantity', item.quantity + 1)}
                                                             className="h-7 w-7 flex items-center justify-center bg-gray-50 hover:bg-gray-100 text-gray-600"
                                                         >
                                                             <span className="text-xs font-bold">+</span>
@@ -540,7 +535,7 @@ export default function CargarMercanciaPage() {
                                                         type="number"
                                                         min="0"
                                                         value={item.unitCost || ""}
-                                                        onChange={e => updateCartItem(item.product.id, 'unitCost', Number(e.target.value))}
+                                                        onChange={e => updateCartItem(index, 'unitCost', Number(e.target.value))}
                                                         placeholder="Costo"
                                                         className="h-7 text-center text-[10px] bg-gray-50 border-gray-200"
                                                     />
@@ -548,7 +543,7 @@ export default function CargarMercanciaPage() {
                                                         type="number"
                                                         min="0"
                                                         value={item.sellingPrice || ""}
-                                                        onChange={e => updateCartItem(item.product.id, 'sellingPrice', Number(e.target.value))}
+                                                        onChange={e => updateCartItem(index, 'sellingPrice', Number(e.target.value))}
                                                         placeholder="P1"
                                                         className="h-7 text-center text-[10px] bg-blue-50 border-blue-200"
                                                     />
@@ -556,7 +551,7 @@ export default function CargarMercanciaPage() {
                                                         type="number"
                                                         min="0"
                                                         value={item.sellingPrice2 || ""}
-                                                        onChange={e => updateCartItem(item.product.id, 'sellingPrice2', Number(e.target.value))}
+                                                        onChange={e => updateCartItem(index, 'sellingPrice2', Number(e.target.value))}
                                                         placeholder="P2"
                                                         className="h-7 text-center text-[10px] bg-purple-50 border-purple-200"
                                                     />
@@ -564,7 +559,7 @@ export default function CargarMercanciaPage() {
                                                         type="number"
                                                         min="0"
                                                         value={item.sellingPrice3 || ""}
-                                                        onChange={e => updateCartItem(item.product.id, 'sellingPrice3', Number(e.target.value))}
+                                                        onChange={e => updateCartItem(index, 'sellingPrice3', Number(e.target.value))}
                                                         placeholder="P3"
                                                         className="h-7 text-center text-[10px] bg-amber-50 border-amber-200"
                                                     />
