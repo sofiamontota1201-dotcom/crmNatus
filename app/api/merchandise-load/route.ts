@@ -107,6 +107,9 @@ export async function POST(request: NextRequest) {
                     quantity: item.quantity,
                     unit_cost: item.unitCost,
                     total_cost: item.quantity * item.unitCost,
+                    selling_price: item.sellingPrice || 0,
+                    selling_price_2: item.sellingPrice2 || 0,
+                    selling_price_3: item.sellingPrice3 || 0,
                 })
         }
 

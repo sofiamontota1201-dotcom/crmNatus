@@ -742,6 +742,10 @@ export default function CargarMercanciaPage() {
                                         <p className="text-xs text-gray-400 uppercase font-bold">Costo Total</p>
                                         <p className="font-bold text-green-600">${detailLoad.totalCost?.toLocaleString()}</p>
                                     </div>
+                                    <div>
+                                        <p className="text-xs text-gray-400 uppercase font-bold">Venta Total</p>
+                                        <p className="font-bold text-blue-600">${detailLoad.items?.reduce((sum: number, item: any) => sum + ((item.selling_price || 0) * item.quantity), 0).toLocaleString()}</p>
+                                    </div>
                                 </div>
                                 {detailLoad.notes && (
                                     <div>
@@ -756,24 +760,40 @@ export default function CargarMercanciaPage() {
                                             <thead>
                                                 <tr className="bg-gray-50 text-[10px] font-black uppercase text-gray-500">
                                                     <th className="p-3 text-left">Producto</th>
-                                                    <th className="p-3 text-center">Cantidad</th>
+                                                    <th className="p-3 text-center">Cant.</th>
                                                     <th className="p-3 text-right">Costo Unit.</th>
-                                                    <th className="p-3 text-right">Total</th>
+                                                    <th className="p-3 text-right">Total Compra</th>
+                                                    <th className="p-3 text-right">P. Venta</th>
+                                                    <th className="p-3 text-right">Total Venta</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-gray-100">
-                                                {detailLoad.items.map((item: any) => (
-                                                    <tr key={item.id}>
-                                                        <td className="p-3">
-<p className="font-bold text-xs">{item.products?.product_name || `Prod #${item.productId}`}</p>
-                                                             <p className="text-[10px] text-gray-800">{item.products?.sku || item.products?.barcode || ''}</p>
-                                                        </td>
-                                                        <td className="p-3 text-center text-xs">{item.quantity}</td>
-                                                        <td className="p-3 text-right text-xs">${item.unitCost?.toLocaleString()}</td>
-                                                        <td className="p-3 text-right font-bold text-xs">${item.totalCost?.toLocaleString()}</td>
-                                                    </tr>
-                                                ))}
+                                                {detailLoad.items.map((item: any) => {
+                                                    const totalVenta = (item.selling_price || 0) * item.quantity
+                                                    return (
+                                                        <tr key={item.id}>
+                                                            <td className="p-3">
+                                                                <p className="font-bold text-xs">{item.products?.product_name || `Prod #${item.productId}`}</p>
+                                                                <p className="text-[10px] text-gray-500">{item.products?.sku || item.products?.barcode || ''}</p>
+                                                            </td>
+                                                            <td className="p-3 text-center text-xs">{item.quantity}</td>
+                                                            <td className="p-3 text-right text-xs">${item.unit_cost?.toLocaleString()}</td>
+                                                            <td className="p-3 text-right font-bold text-xs">${item.total_cost?.toLocaleString()}</td>
+                                                            <td className="p-3 text-right text-xs text-blue-600">${item.selling_price?.toLocaleString()}</td>
+                                                            <td className="p-3 text-right font-bold text-xs text-blue-700">${totalVenta.toLocaleString()}</td>
+                                                        </tr>
+                                                    )
+                                                })}
                                             </tbody>
+                                            <tfoot>
+                                                <tr className="bg-gray-100 font-black text-[11px]">
+                                                    <td className="p-3 text-left" colSpan={2}>TOTALES</td>
+                                                    <td className="p-3 text-right"></td>
+                                                    <td className="p-3 text-right text-green-700">${detailLoad.items.reduce((sum: number, item: any) => sum + (item.total_cost || 0), 0).toLocaleString()}</td>
+                                                    <td className="p-3 text-right"></td>
+                                                    <td className="p-3 text-right text-blue-700">${detailLoad.items.reduce((sum: number, item: any) => sum + ((item.selling_price || 0) * item.quantity), 0).toLocaleString()}</td>
+                                                </tr>
+                                            </tfoot>
                                         </table>
                                     </div>
                                 )}
