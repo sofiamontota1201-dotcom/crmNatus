@@ -1,7 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { toCamelCaseKeys, toSnakeCaseKeys } from '@/lib/utils/case'
 import type { Stock } from '@/types/domain'
-import { getUserPermissions, filterDataByPermissions, canPerformAction } from '@/lib/permissions'
 
 export class StocksRepository {
   constructor(private readonly client: SupabaseClient<any, any, any>) {}
@@ -20,9 +19,6 @@ export class StocksRepository {
     const { data: { user } } = await this.client.auth.getUser()
     if (!user) throw new Error('User not authenticated')
 
-    // Obtener permisos del usuario
-    const permissions = await getUserPermissions(this.client, user.id)
-
     let query = this.client
       .from('stocks')
       .select(`
@@ -35,18 +31,15 @@ export class StocksRepository {
     if (options?.search) {
       query = query.ilike('product_code', `%${options.search}%`)
     }
-    query = query.limit(options?.limit ?? 500)
+    query = query.limit(options?.limit ?? 5000)
     const { data, error } = await query
     if (error) throw error
 
-    const stocks = (data ?? []).map((row) => toCamelCaseKeys<Stock>(row))
-
-    // Filtrar según permisos
-    return filterDataByPermissions(stocks, user.id, permissions)
+    return (data ?? []).map((row) => toCamelCaseKeys<Stock>(row))
   }
 
   // Búsqueda en servidor sobre TODA la tabla (los list() están limitados a 500)
-  async search(term: string, limit = 200): Promise<Stock[]> {
+  async search(term: string, limit = 500): Promise<Stock[]> {
     const { data: { user } } = await this.client.auth.getUser()
     if (!user) throw new Error('User not authenticated')
 
@@ -67,8 +60,7 @@ export class StocksRepository {
       .limit(limit)
     if (error) throw error
 
-    const stocks = (data ?? []).map((row) => toCamelCaseKeys<Stock>(row))
-    return filterDataByPermissions(stocks, user.id, await getUserPermissions(this.client, user.id))
+    return (data ?? []).map((row) => toCamelCaseKeys<Stock>(row))
   }
 
   // Trae TODOS los productos activos - los que no tienen stock aparecen con currentQuantity 0
