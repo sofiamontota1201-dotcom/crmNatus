@@ -1,7 +1,8 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
+import { ReceiptPrint, type ReceiptPrintHandle, type ReceiptData } from "@/components/print/receipt-print"
 import { Navigation } from "@/components/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -316,6 +317,8 @@ export default function SellsPage() {
   // --- EXPRESS CHECKOUT ---
   const [expressModalOpen, setExpressModalOpen] = useState(false)
   const [expressPaymentMethod, setExpressPaymentMethod] = useState("0")
+  const [expressReceipt, setExpressReceipt] = useState<ReceiptData | null>(null)
+  const receiptRef = useRef<ReceiptPrintHandle>(null)
 
   const handleExpressCheckout = () => {
     if (selectedItems.length === 0) {
@@ -433,6 +436,19 @@ export default function SellsPage() {
       doc.setFont('helvetica', 'bold')
       doc.text(`TOTAL: $${total.toLocaleString()}`, 283, lastY, { align: 'right' })
       doc.save(`Factura_Express_${sell.id}.pdf`)
+
+      // Impresión térmica (impresora especial 80mm)
+      const payLabelThermal = expressPaymentMethod === "0" ? 'Efectivo' : expressPaymentMethod === "1" ? 'Tarjeta' : 'Transferencia'
+      setExpressReceipt({
+        receiptNumber: `EX-${sell.id}`,
+        customerName: customer?.customerName || null,
+        date: new Date().toISOString(),
+        items: selectedItems.map(item => ({ id: `${item.stockId}`, name: item.productName, quantity: item.quantity, price: item.total })),
+        total,
+        paymentMethod: payLabelThermal,
+        discount: totalDiscount > 0 ? totalDiscount : undefined,
+      })
+      receiptRef.current?.print()
 
       toast({ title: "¡Factura Express!", description: `Venta #${sell.id} generada` })
       clearCart()
@@ -688,7 +704,7 @@ export default function SellsPage() {
                         }}
                         disabled={isOutOfStock}
                         className={cn(
-                          "flex-1 text-[9px] font-bold py-1 px-1.5 rounded border transition-colors",
+                          "flex-1 text-[13px] font-bold py-1.5 px-1.5 rounded border transition-colors",
                           isOutOfStock
                             ? "bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed"
                             : "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
@@ -1098,6 +1114,7 @@ export default function SellsPage() {
           </div>
         </div>
       </main>
+      <ReceiptPrint ref={receiptRef} data={expressReceipt} />
     </div>
   )
 }
