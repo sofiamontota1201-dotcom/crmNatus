@@ -62,7 +62,7 @@ export class StocksRepository {
         vendors:vendors(name, phone),
         categories:categories(name)
       `)
-      .or(`product_code.ilike.${pattern},products.product_name.ilike.${pattern}`)
+      .or(`product_code.ilike.${pattern},products.product_name.ilike.${pattern},products.sku.ilike.${pattern},products.barcode.ilike.${pattern},products.details.ilike.${pattern}`)
       .order('id', { ascending: false })
       .limit(limit)
     if (error) throw error

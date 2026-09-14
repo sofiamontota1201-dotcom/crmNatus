@@ -311,11 +311,16 @@ export default function StockPage() {
     return [...remoteStocks, ...stocks.filter(s => !seen.has(s.id))]
   }, [remoteStocks, stocks])
 
+  const productById = useMemo(() => new Map(products.map(p => [p.id, p])), [products])
+
   const filteredStocks = useMemo(() => stockPool.filter((stock) => {
     const term = normalizeSearch(debouncedMainSearch)
+    const product = stock.productId ? productById.get(stock.productId) : undefined
     const matchesSearch = !term ||
       normalizeSearch(stock.products?.productName).includes(term) ||
-      normalizeSearch(stock.productCode).includes(term)
+      normalizeSearch(stock.productCode).includes(term) ||
+      normalizeSearch(product?.sku).includes(term) ||
+      normalizeSearch(product?.barcode).includes(term)
     const matchesCategory = mainSelectedCategory === "all" || stock.categoryId?.toString() === mainSelectedCategory
     return matchesSearch && matchesCategory && !isNumericCodeName(stock.products?.productName)
   }), [stockPool, debouncedMainSearch, mainSelectedCategory])
@@ -330,12 +335,37 @@ export default function StockPage() {
     [filteredStocks, visibleCount],
   )
 
-  // Modal product filter
-  const modalFilteredProducts = useMemo(() => products.filter(p =>
-    (!debouncedSearch || normalizeSearch(p.productName).includes(normalizeSearch(debouncedSearch))) &&
-    (!selectedCategory || selectedCategory === "all" || p.categoryId?.toString() === selectedCategory) &&
-    !isNumericCodeName(p.productName)
-  ), [products, debouncedSearch, selectedCategory])
+  // Modal product filter (mismo filtrado que el módulo de productos: búsqueda local + remota en servidor)
+  const [remoteProducts, setRemoteProducts] = useState<Product[]>([])
+  useEffect(() => {
+    const term = normalizeSearch(debouncedSearch)
+    if (term.length < 2) {
+      setRemoteProducts([])
+      return
+    }
+    let cancelled = false
+    productsRepository.search(term)
+      .then((results) => { if (!cancelled) setRemoteProducts(results) })
+      .catch(() => { })
+    return () => { cancelled = true }
+  }, [debouncedSearch])
+
+  const productPool = useMemo(() => {
+    if (remoteProducts.length === 0) return products
+    const seen = new Set(remoteProducts.map(p => p.id))
+    return [...remoteProducts, ...products.filter(p => !seen.has(p.id))]
+  }, [remoteProducts, products])
+
+  const modalFilteredProducts = useMemo(() => productPool.filter(p => {
+    const term = normalizeSearch(debouncedSearch)
+    const matchesSearch = !term ||
+      normalizeSearch(p.productName).includes(term) ||
+      normalizeSearch(p.sku).includes(term) ||
+      normalizeSearch(p.barcode).includes(term) ||
+      (p.details && normalizeSearch(p.details).includes(term))
+    const matchesCategory = !selectedCategory || selectedCategory === "all" || p.categoryId?.toString() === selectedCategory
+    return matchesSearch && matchesCategory && !isNumericCodeName(p.productName)
+  }), [productPool, debouncedSearch, selectedCategory])
 
   if (loading && stocks.length === 0) return (
     <div className="flex bg-background min-h-screen">
