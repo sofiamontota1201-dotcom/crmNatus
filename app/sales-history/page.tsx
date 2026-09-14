@@ -28,6 +28,7 @@ import { parseLocalDate, todayLocalISO } from "@/lib/utils/date"
 import { isNumericCodeName, normalizeSearch } from "@/lib/utils/product"
 import { useToast } from "@/hooks/use-toast"
 import { useDebounce } from "@/hooks/use-debounce"
+import { BILLING_INFO } from "@/components/print/receipt-print"
 
 interface CartItem {
     stockId: string
@@ -815,7 +816,14 @@ export default function SalesHistoryPage() {
             // Company Info (Top Center/Right)
             doc.setFontSize(18);
             doc.setTextColor(...PURPLE);
-            doc.text(sale.paymentStatus === 0 ? "COTIZACIÓN DE VENTA" : "GGL EXPRESS", 14, 15);
+            doc.text(sale.paymentStatus === 0 ? "COTIZACIÓN DE VENTA" : BILLING_INFO.businessName, 14, 15);
+
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(8);
+            doc.setTextColor(80, 80, 80);
+            doc.text(`${BILLING_INFO.owner} · NIT ${BILLING_INFO.nit} · ${BILLING_INFO.address}, ${BILLING_INFO.city}`, 14, 18.5);
+            doc.setFontSize(9);
+            doc.setTextColor(0, 0, 0);
 
             // Top Bar
             doc.setDrawColor(...PURPLE);

@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useEffect, useMemo, useRef } from "react"
-import { ReceiptPrint, type ReceiptPrintHandle, type ReceiptData } from "@/components/print/receipt-print"
+import { ReceiptPrint, BILLING_INFO, type ReceiptPrintHandle, type ReceiptData } from "@/components/print/receipt-print"
 import { Navigation } from "@/components/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -408,6 +408,9 @@ export default function SellsPage() {
       doc.setFontSize(18)
       doc.setFont('helvetica', 'bold')
       doc.text('FACTURA EXPRESS', 148.5, 15, { align: 'center' })
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'normal')
+      doc.text(`${BILLING_INFO.owner} · NIT ${BILLING_INFO.nit} · ${BILLING_INFO.address}, ${BILLING_INFO.city}`, 148.5, 20.5, { align: 'center' })
       doc.setFontSize(10)
       doc.text(`Venta #${sell.id} - ${new Date().toLocaleDateString('es-CO')}`, 148.5, 25, { align: 'center' })
 

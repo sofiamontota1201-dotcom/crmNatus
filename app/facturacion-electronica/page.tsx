@@ -12,6 +12,7 @@ import { supabase } from "@/lib/supabase"
 import { SellsRepository } from "@/lib/repositories/sellsRepository"
 import { normalizeSearch } from "@/lib/utils/product"
 import { useDebounce } from "@/hooks/use-debounce"
+import { BILLING_INFO } from "@/components/print/receipt-print"
 
 export default function FacturacionPage() {
   const { toast } = useToast()
@@ -153,7 +154,14 @@ export default function FacturacionPage() {
       doc.setFontSize(18);
       const headerColor: [number, number, number] = sale.paymentStatus === 0 ? [245, 158, 11] : PURPLE
       doc.setTextColor(...headerColor);
-      doc.text(sale.paymentStatus === 0 ? "COTIZACIÓN DE VENTA" : "GGL EXPRESS", 14, 15);
+      doc.text(sale.paymentStatus === 0 ? "COTIZACIÓN DE VENTA" : BILLING_INFO.businessName, 14, 15);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(80, 80, 80);
+      doc.text(`${BILLING_INFO.owner} · NIT ${BILLING_INFO.nit} · ${BILLING_INFO.address}, ${BILLING_INFO.city}`, 14, 18.5);
+      doc.setFontSize(9);
+      doc.setTextColor(0, 0, 0);
 
       doc.setDrawColor(...headerColor);
       doc.setLineWidth(1);
