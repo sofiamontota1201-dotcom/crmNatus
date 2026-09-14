@@ -21,6 +21,7 @@ import { supabase } from "@/lib/supabase"
 import { createProductAction } from "@/app/actions/products"
 import { isNumericCodeName, normalizeSearch } from "@/lib/utils/product"
 import { toCamelCaseKeys } from "@/lib/utils/case"
+import { parseLocalDate, todayLocalISO } from "@/lib/utils/date"
 import { useDebounce } from "@/hooks/use-debounce"
 import type { Product, Vendor, MerchandiseLoad } from "@/types/domain"
 import { Truck, Search, Plus, Trash2, CheckCircle, Package, DollarSign, ShoppingCart, Loader2, Clock, Eye, Filter, Check, ChevronsUpDown, X } from "lucide-react"
@@ -53,6 +54,7 @@ export default function CargarMercanciaPage() {
     const [vendorId, setVendorId] = useState<string>("")
     const [referenceCode, setReferenceCode] = useState("")
     const [notes, setNotes] = useState("")
+    const [loadDate, setLoadDate] = useState(() => todayLocalISO())
 
     // Product search & filter
     const [searchTerm, setSearchTerm] = useState("")
@@ -70,6 +72,8 @@ export default function CargarMercanciaPage() {
 
     // History filter
     const [historyVendorFilter, setHistoryVendorFilter] = useState<string>("all")
+    const [historyDateFilter, setHistoryDateFilter] = useState<"today" | "week" | "month" | "year" | "custom">("today")
+    const [historyDateRange, setHistoryDateRange] = useState<{ start: string; end: string }>({ start: todayLocalISO(), end: todayLocalISO() })
 
     // Tabs
     const [activeTab, setActiveTab] = useState<"carga" | "historial">("carga")
@@ -232,6 +236,11 @@ export default function CargarMercanciaPage() {
             return
         }
 
+        if (loadDate > todayLocalISO()) {
+            toast({ title: "Error", description: "La fecha de la carga no puede ser futura", variant: "destructive" })
+            return
+        }
+
         setSubmitting(true)
         try {
             const res = await fetch('/api/merchandise-load', {
@@ -241,6 +250,7 @@ export default function CargarMercanciaPage() {
                     vendorId: vendorId ? Number(vendorId) : null,
                     referenceCode: referenceCode || null,
                     notes: notes || null,
+                    loadDate,
                     items: cart.map(c => ({
                         productId: c.product.id,
                         quantity: c.quantity,
@@ -266,6 +276,7 @@ export default function CargarMercanciaPage() {
             setVendorId("")
             setReferenceCode("")
             setNotes("")
+            setLoadDate(todayLocalISO())
             loadData()
 
         } catch (err: any) {
@@ -288,10 +299,60 @@ export default function CargarMercanciaPage() {
         }
     }
 
+    // --- HELPERS DE RANGO DE FECHA (igual que historial de ventas) ---
+    const toLocalISO = (d: Date) => {
+        const year = d.getFullYear()
+        const month = String(d.getMonth() + 1).padStart(2, '0')
+        const day = String(d.getDate()).padStart(2, '0')
+        return `${year}-${month}-${day}`
+    }
+
+    const getHistoryDateRange = (): { start: string; end: string } => {
+        const now = new Date()
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+        switch (historyDateFilter) {
+            case "today":
+                return { start: toLocalISO(today), end: toLocalISO(today) }
+            case "week": {
+                const day = today.getDay()
+                const monday = new Date(today)
+                monday.setDate(today.getDate() - (day === 0 ? 6 : day - 1))
+                const sunday = new Date(monday)
+                sunday.setDate(monday.getDate() + 6)
+                return { start: toLocalISO(monday), end: toLocalISO(sunday) }
+            }
+            case "month": {
+                const first = new Date(today.getFullYear(), today.getMonth(), 1)
+                const last = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+                return { start: toLocalISO(first), end: toLocalISO(last) }
+            }
+            case "year": {
+                const first = new Date(today.getFullYear(), 0, 1)
+                const last = new Date(today.getFullYear(), 11, 31)
+                return { start: toLocalISO(first), end: toLocalISO(last) }
+            }
+            case "custom":
+                return historyDateRange
+            default:
+                return { start: toLocalISO(today), end: toLocalISO(today) }
+        }
+    }
+
+    const activeHistoryRange = useMemo(() => getHistoryDateRange(), [historyDateFilter, historyDateRange])
+
+    const loadDateOf = (load: any): string => {
+        const rawDate = (load as any).created_at || load.createdAt
+        return toLocalISO(parseLocalDate(rawDate || new Date()))
+    }
+
     const filteredHistory = useMemo(() => {
-        if (historyVendorFilter === "all") return history
-        return history.filter(h => h.vendorId?.toString() === historyVendorFilter)
-    }, [history, historyVendorFilter])
+        return history.filter(h =>
+            (historyVendorFilter === "all" || h.vendorId?.toString() === historyVendorFilter) &&
+            loadDateOf(h) >= activeHistoryRange.start &&
+            loadDateOf(h) <= activeHistoryRange.end
+        )
+    }, [history, historyVendorFilter, activeHistoryRange])
 
     const selectedVendorInfo = useMemo(() => {
         if (!vendorId || vendorId === "none") return null
@@ -390,7 +451,7 @@ export default function CargarMercanciaPage() {
                         {/* Header Form compacto */}
                         <Card className="border-gray-200 bg-white shadow-sm mb-3 shrink-0">
                             <CardContent className="p-3">
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                                     <div className="space-y-1">
                                         <Label className="text-[10px] font-semibold text-gray-500 uppercase">Proveedor</Label>
                                         <Popover open={vendorPopoverOpen} onOpenChange={setVendorPopoverOpen}>
@@ -434,6 +495,16 @@ export default function CargarMercanciaPage() {
                                                 </Command>
                                             </PopoverContent>
                                         </Popover>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-[10px] font-semibold text-gray-500 uppercase">Fecha de la Carga</Label>
+                                        <Input
+                                            type="date"
+                                            value={loadDate}
+                                            max={todayLocalISO()}
+                                            onChange={e => setLoadDate(e.target.value)}
+                                            className="bg-gray-50 border-gray-200 h-8 text-xs"
+                                        />
                                     </div>
                                     <div className="space-y-1">
                                         <Label className="text-[10px] font-semibold text-gray-500 uppercase">Referencia</Label>
@@ -686,7 +757,50 @@ export default function CargarMercanciaPage() {
                     </div>
 
                     {/* Filtros */}
-                    <div className="flex items-center gap-3 mb-3 shrink-0">
+                    <div className="flex items-center gap-3 mb-3 shrink-0 flex-wrap">
+                        {/* Quick Date Filters */}
+                        <div className="flex bg-gray-100 rounded-xl p-1 gap-0.5">
+                            {([
+                                { key: "today" as const, label: "Hoy" },
+                                { key: "week" as const, label: "Semana" },
+                                { key: "month" as const, label: "Mes" },
+                                { key: "year" as const, label: "Año" },
+                                { key: "custom" as const, label: "Otro" },
+                            ]).map((f) => (
+                                <button
+                                    key={f.key}
+                                    onClick={() => setHistoryDateFilter(f.key)}
+                                    className={cn(
+                                        "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                                        historyDateFilter === f.key
+                                            ? "bg-white text-primary shadow-sm"
+                                            : "text-gray-500 hover:text-gray-700"
+                                    )}
+                                >
+                                    {f.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Custom Date Range */}
+                        {historyDateFilter === "custom" && (
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="date"
+                                    value={historyDateRange.start}
+                                    onChange={(e) => setHistoryDateRange(prev => ({ ...prev, start: e.target.value }))}
+                                    className="px-3 py-1.5 rounded-xl border border-gray-200 bg-white text-xs font-medium text-gray-800 focus:ring-2 focus:ring-primary/40 focus:outline-none"
+                                />
+                                <span className="text-gray-400 text-xs">a</span>
+                                <input
+                                    type="date"
+                                    value={historyDateRange.end}
+                                    onChange={(e) => setHistoryDateRange(prev => ({ ...prev, end: e.target.value }))}
+                                    className="px-3 py-1.5 rounded-xl border border-gray-200 bg-white text-xs font-medium text-gray-800 focus:ring-2 focus:ring-primary/40 focus:outline-none"
+                                />
+                            </div>
+                        )}
+
                         <Select value={historyVendorFilter} onValueChange={setHistoryVendorFilter}>
                             <SelectTrigger className="w-48 bg-white border-gray-200 text-xs h-9">
                                 <Filter className="w-3 h-3 mr-1 text-gray-400" />

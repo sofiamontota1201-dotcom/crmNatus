@@ -20,6 +20,7 @@ interface CreateLoadRequest {
     vendorId?: number | null
     referenceCode?: string
     notes?: string
+    loadDate?: string
     items: LoadItem[]
     createdBy?: string
 }
@@ -32,20 +33,26 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Debe agregar al menos un producto' }, { status: 400 })
         }
 
+        // Fecha retroactiva opcional (YYYY-MM-DD) con hora 12:00 para evitar desfases de zona horaria
+        const loadCreatedAt = body.loadDate ? `${body.loadDate}T12:00:00` : undefined
+
         const totalItems = body.items.reduce((sum, item) => sum + item.quantity, 0)
         const totalCost = body.items.reduce((sum, item) => sum + (item.quantity * item.unitCost), 0)
 
+        const loadPayload: Record<string, any> = {
+            vendor_id: body.vendorId || null,
+            reference_code: body.referenceCode || null,
+            notes: body.notes || null,
+            total_items: totalItems,
+            total_cost: totalCost,
+            status: 'completed',
+            created_by: body.createdBy || null,
+        }
+        if (loadCreatedAt) loadPayload.created_at = loadCreatedAt
+
         const { data: load, error: loadError } = await adminClient
             .from('merchandise_loads')
-            .insert({
-                vendor_id: body.vendorId || null,
-                reference_code: body.referenceCode || null,
-                notes: body.notes || null,
-                total_items: totalItems,
-                total_cost: totalCost,
-                status: 'completed',
-                created_by: body.createdBy || null,
-            })
+            .insert(loadPayload)
             .select('id')
             .single()
 
@@ -118,6 +125,7 @@ export async function POST(request: NextRequest) {
                             current_quantity: item.quantity,
 
                             status: 1,
+                            ...(loadCreatedAt ? { created_at: loadCreatedAt } : {}),
                         })
                         .select('id')
                         .single()
