@@ -45,6 +45,32 @@ export class StocksRepository {
     return filterDataByPermissions(stocks, user.id, permissions)
   }
 
+  // Búsqueda en servidor sobre TODA la tabla (los list() están limitados a 500)
+  async search(term: string, limit = 200): Promise<Stock[]> {
+    const { data: { user } } = await this.client.auth.getUser()
+    if (!user) throw new Error('User not authenticated')
+
+    const clean = term.replace(/[,()%]/g, '').trim()
+    if (!clean) return []
+    const pattern = `%${clean}%`
+
+    const { data, error } = await this.client
+      .from('stocks')
+      .select(`
+        *,
+        products:products(product_name, details, status),
+        vendors:vendors(name, phone),
+        categories:categories(name)
+      `)
+      .or(`product_code.ilike.${pattern},products.product_name.ilike.${pattern}`)
+      .order('id', { ascending: false })
+      .limit(limit)
+    if (error) throw error
+
+    const stocks = (data ?? []).map((row) => toCamelCaseKeys<Stock>(row))
+    return filterDataByPermissions(stocks, user.id, await getUserPermissions(this.client, user.id))
+  }
+
   // Trae TODOS los productos activos - los que no tienen stock aparecen con currentQuantity 0
   async listForPOS(): Promise<Stock[]> {
     const [stocksResult, productsResult] = await Promise.all([

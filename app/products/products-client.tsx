@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useTransition } from "react"
+import { useState, useEffect, useMemo, useTransition } from "react"
 import { Navigation } from "@/components/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -26,6 +26,9 @@ import { createProductAction, updateProductAction, deleteProductAction, updatePr
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { useDebounce } from "@/hooks/use-debounce"
+import { normalizeSearch } from "@/lib/utils/product"
+import { supabase } from "@/lib/supabase"
+import { ProductsRepository } from "@/lib/repositories/productsRepository"
 
 interface ProductsClientProps {
     initialProducts: Product[]
@@ -43,9 +46,29 @@ export function ProductsClient({ initialProducts, categories, vendors }: Product
     const [selectedVendor, setSelectedVendor] = useState<string>("all")
     const [stockFilter, setStockFilter] = useState<string>("all")
     const [editingSellingPrice, setEditingSellingPrice] = useState<{ productId: number; price: string } | null>(null)
+    const [visibleCount, setVisibleCount] = useState(100)
     const { toast } = useToast()
     const [isPending, startTransition] = useTransition()
     const debouncedSearch = useDebounce(searchTerm, 300)
+
+    useEffect(() => {
+        setVisibleCount(100)
+    }, [debouncedSearch, selectedCategory, selectedVendor, stockFilter])
+
+    // Búsqueda en servidor: trae coincidencias de TODA la tabla (los 500 iniciales no cubren todo el catálogo)
+    const [remoteProducts, setRemoteProducts] = useState<Product[]>([])
+    useEffect(() => {
+        const term = normalizeSearch(debouncedSearch)
+        if (term.length < 2) {
+            setRemoteProducts([])
+            return
+        }
+        let cancelled = false
+        new ProductsRepository(supabase).search(term)
+            .then((results) => { if (!cancelled) setRemoteProducts(results) })
+            .catch(() => { })
+        return () => { cancelled = true }
+    }, [debouncedSearch])
 
     const [formData, setFormData] = useState({
         productName: "",
@@ -172,10 +195,20 @@ export function ProductsClient({ initialProducts, categories, vendors }: Product
         setIsDialogOpen(true)
     }
 
-    const filteredProducts = products.filter((product) => {
+    const searchPool = useMemo(() => {
+        if (remoteProducts.length === 0) return products
+        const seen = new Set(remoteProducts.map(p => p.id))
+        return [...remoteProducts, ...products.filter(p => !seen.has(p.id))]
+    }, [remoteProducts, products])
+
+    const filteredProducts = useMemo(() => searchPool.filter((product) => {
+        const term = normalizeSearch(debouncedSearch)
         const matchesSearch =
-            product.productName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-            (product.details && product.details.toLowerCase().includes(debouncedSearch.toLowerCase()))
+            !term ||
+            product.productName.toLowerCase().includes(term) ||
+            normalizeSearch(product.sku).includes(term) ||
+            normalizeSearch(product.barcode).includes(term) ||
+            (product.details && product.details.toLowerCase().includes(term))
         const matchesCategory = selectedCategory === "all" || product.categoryId?.toString() === selectedCategory
         const matchesVendor = selectedVendor === "all" || product.vendorId?.toString() === selectedVendor
         const totalStock = product.stocks?.reduce((acc, s) => acc + s.currentQuantity, 0) || 0
@@ -183,7 +216,12 @@ export function ProductsClient({ initialProducts, categories, vendors }: Product
             || (stockFilter === "with" && totalStock > 0)
             || (stockFilter === "without" && totalStock === 0)
         return matchesSearch && matchesCategory && matchesVendor && matchesStock
-    })
+    }), [searchPool, debouncedSearch, selectedCategory, selectedVendor, stockFilter])
+
+    const visibleProducts = useMemo(
+        () => filteredProducts.slice(0, visibleCount),
+        [filteredProducts, visibleCount],
+    )
 
     return (
         <div className="flex h-screen bg-background text-foreground overflow-hidden">
@@ -387,7 +425,7 @@ export function ProductsClient({ initialProducts, categories, vendors }: Product
                 {/* Grid de Productos */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-20">
                     <AnimatePresence>
-                        {filteredProducts.map((product) => (
+                        {visibleProducts.map((product) => (
                             <motion.div
                                 key={product.id}
                                 initial={{ opacity: 0, scale: 0.9 }}
@@ -537,6 +575,18 @@ export function ProductsClient({ initialProducts, categories, vendors }: Product
                             </motion.div>
                         ))}
                     </AnimatePresence>
+
+                    {filteredProducts.length > visibleProducts.length && (
+                        <div className="col-span-full flex justify-center pt-4">
+                            <Button
+                                variant="outline"
+                                onClick={() => setVisibleCount(c => c + 100)}
+                                className="text-sm"
+                            >
+                                Ver más ({filteredProducts.length - visibleProducts.length} restantes)
+                            </Button>
+                        </div>
+                    )}
 
                     {filteredProducts.length === 0 && (
                         <div className="col-span-full py-20 text-center text-gray-500">

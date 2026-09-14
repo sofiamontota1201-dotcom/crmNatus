@@ -1,10 +1,12 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { supabase } from "@/lib/supabase"
-import { ReportsRepository, ProfitabilityReport, ProfitabilityItem } from "@/lib/repositories/reportsRepository"
+import { ReportsRepository, ProfitabilityReport } from "@/lib/repositories/reportsRepository"
+import { normalizeSearch } from "@/lib/utils/product"
+import { useDebounce } from "@/hooks/use-debounce"
 import { FileDown, Search, TrendingUp, BarChart3 } from "lucide-react"
 import {
     BarChart,
@@ -26,7 +28,17 @@ export function ProfitabilityAnalysisReport() {
     const [startDate, setStartDate] = useState("")
     const [endDate, setEndDate] = useState("")
     const [categoryFilter, setCategoryFilter] = useState("")
-    const [filteredDetails, setFilteredDetails] = useState<ProfitabilityItem[]>([])
+    const debouncedCategoryFilter = useDebounce(categoryFilter, 300)
+
+    const filteredDetails = useMemo(() => {
+        if (!reportData) return []
+        const term = normalizeSearch(debouncedCategoryFilter)
+        if (!term) return reportData.details
+        return reportData.details.filter(d =>
+            normalizeSearch(d.productName).includes(term) ||
+            normalizeSearch(d.categoryName).includes(term)
+        )
+    }, [reportData, debouncedCategoryFilter])
 
     const repo = new ReportsRepository(supabase)
 
@@ -39,19 +51,6 @@ export function ProfitabilityAnalysisReport() {
         loadData(firstDay, lastDay)
     }, [])
 
-    useEffect(() => {
-        if (reportData) {
-            if (categoryFilter) {
-                setFilteredDetails(reportData.details.filter(d =>
-                    d.productName?.toLowerCase().includes(categoryFilter.toLowerCase()) ||
-                    d.categoryName?.toLowerCase().includes(categoryFilter.toLowerCase())
-                ))
-            } else {
-                setFilteredDetails(reportData.details)
-            }
-        }
-    }, [reportData, categoryFilter])
-
     const loadData = async (start = startDate, end = endDate) => {
         setLoading(true)
         try {
@@ -63,7 +62,6 @@ export function ProfitabilityAnalysisReport() {
                 margen: data.summary.contributionMarginPercent
             })
             setReportData(data)
-            setFilteredDetails(data.details)
         } catch (e) {
             console.error(e)
         } finally {

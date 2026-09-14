@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { supabase } from "@/lib/supabase"
+import { normalizeSearch } from "@/lib/utils/product"
+import { useDebounce } from "@/hooks/use-debounce"
 import {
     FileDown, Search, Calendar, DollarSign, ShoppingCart,
     TrendingUp, CheckSquare, Square, ListChecks, X, ChevronDown, ChevronUp
@@ -71,6 +73,7 @@ export function SalesReport() {
     const [period, setPeriod] = useState<PeriodKey>('month')
     const [dateRange, setDateRange] = useState({ start: '', end: '' })
     const [searchTerm, setSearchTerm] = useState('')
+    const debouncedSearch = useDebounce(searchTerm, 300)
 
     // Panel de selección de facturas — carga TODAS las facturas
     const [showSelector, setShowSelector] = useState(false)
@@ -78,6 +81,7 @@ export function SalesReport() {
     const [loadingAll, setLoadingAll] = useState(false)
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
     const [selectorSearch, setSelectorSearch] = useState('')
+    const debouncedSelectorSearch = useDebounce(selectorSearch, 300)
     
     // Panel de Notas Ejecutivas (IA)
     const [executiveNotes, setExecutiveNotes] = useState("")
@@ -212,18 +216,24 @@ export function SalesReport() {
     }
 
     // ── filtrado por búsqueda en tabla principal
-    const filteredSales = useMemo(() =>
-        sales.filter(s =>
-            s.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            s.id.toString().includes(searchTerm)
-        ), [sales, searchTerm])
+    const filteredSales = useMemo(() => {
+        const term = normalizeSearch(debouncedSearch)
+        if (!term) return sales
+        return sales.filter(s =>
+            s.customer_name.toLowerCase().includes(term) ||
+            s.id.toString().includes(term)
+        )
+    }, [sales, debouncedSearch])
 
     // ── facturas para el selector
-    const selectorSales = useMemo(() =>
-        allSales.filter(s =>
-            s.id.toString().includes(selectorSearch) ||
-            s.customer_name.toLowerCase().includes(selectorSearch.toLowerCase())
-        ), [allSales, selectorSearch])
+    const selectorSales = useMemo(() => {
+        const term = normalizeSearch(debouncedSelectorSearch)
+        if (!term) return allSales
+        return allSales.filter(s =>
+            s.id.toString().includes(term) ||
+            s.customer_name.toLowerCase().includes(term)
+        )
+    }, [allSales, debouncedSelectorSearch])
 
     // ── facturas activas para el balance (si hay selección, usar allSales; si no, filteredSales)
     const activeSales = useMemo(() =>

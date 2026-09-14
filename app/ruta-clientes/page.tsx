@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import { Navigation } from "@/components/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,6 +12,8 @@ import { Customer, Prospect } from '@/types/domain'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import { ProspectsRepository } from '@/lib/repositories/prospectsRepository'
+import { normalizeSearch } from '@/lib/utils/product'
+import { useDebounce } from '@/hooks/use-debounce'
 import { toast } from 'sonner'
 
 // Dynamic import for Map to avoid SSR issues
@@ -25,6 +27,7 @@ const INITIAL_PROSPECTS: Prospect[] = []
 export default function RutaClientesPage() {
   const [prospects, setProspects] = useState<Prospect[]>(INITIAL_PROSPECTS)
   const [searchTerm, setSearchTerm] = useState('')
+  const debouncedSearch = useDebounce(searchTerm, 300)
   const [selectedCity, setSelectedCity] = useState<string | 'all'>('all')
   const [loading, setLoading] = useState(false)
 
@@ -49,14 +52,27 @@ export default function RutaClientesPage() {
     }
   }
 
-  const filteredProspects = prospects.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.city?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredProspects = useMemo(() => prospects.filter(p => {
+    const term = normalizeSearch(debouncedSearch)
+    const matchesSearch = !term ||
+      normalizeSearch(p.name).includes(term) ||
+      normalizeSearch(p.city).includes(term)
     const matchesCity = selectedCity === 'all' || p.city?.includes(selectedCity)
     return matchesSearch && matchesCity
-  })
+  }), [prospects, debouncedSearch, selectedCity])
 
-  const cities = Array.from(new Set(prospects.map(p => p.city?.split(',')[0]))).filter(Boolean)
+  const cities = useMemo(
+    () => Array.from(new Set(prospects.map(p => p.city?.split(',')[0]))).filter(Boolean) as string[],
+    [prospects],
+  )
+
+  const cityCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const city of cities) {
+      counts[city] = prospects.filter(p => p.city?.includes(city)).length
+    }
+    return counts
+  }, [cities, prospects])
 
   const handleConvertToCustomer = async (prospect: Prospect) => {
     setLoading(true)
@@ -316,7 +332,7 @@ export default function RutaClientesPage() {
             {selectedCity === 'all' ? (
               <div className="grid gap-4 md:grid-cols-3">
                 {cities.map(city => {
-                  const count = prospects.filter(p => p.city?.includes(city!)).length
+                  const count = cityCounts[city] ?? 0
                   return (
                     <div key={city} 
                       onClick={() => setSelectedCity(city!)}

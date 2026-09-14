@@ -19,8 +19,9 @@ import {
 } from "@/components/ui/dialog"
 import { supabase } from "@/lib/supabase"
 import { createProductAction } from "@/app/actions/products"
-import { isNumericCodeName } from "@/lib/utils/product"
+import { isNumericCodeName, normalizeSearch } from "@/lib/utils/product"
 import { toCamelCaseKeys } from "@/lib/utils/case"
+import { useDebounce } from "@/hooks/use-debounce"
 import type { Product, Vendor, MerchandiseLoad } from "@/types/domain"
 import { Truck, Search, Plus, Trash2, CheckCircle, Package, DollarSign, ShoppingCart, Loader2, Clock, Eye, Filter, Check, ChevronsUpDown, X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
@@ -55,7 +56,13 @@ export default function CargarMercanciaPage() {
 
     // Product search & filter
     const [searchTerm, setSearchTerm] = useState("")
+    const debouncedSearchTerm = useDebounce(searchTerm, 300)
     const [categoryFilter, setCategoryFilter] = useState("all")
+    const [visibleCount, setVisibleCount] = useState(50)
+
+    useEffect(() => {
+        setVisibleCount(50)
+    }, [debouncedSearchTerm, categoryFilter])
 
     // Cart
     const [cart, setCart] = useState<CartItem[]>([])
@@ -157,30 +164,34 @@ export default function CargarMercanciaPage() {
         }
     }
 
-    const filteredProducts = useMemo(() => {
-        let filtered = products.map(p => ({
-            ...p,
-            currentStock: vendorStocks[p.id] || 0,
-        }))
+    const matchedProducts = useMemo(() => {
+        let filtered = products.filter(p => !isNumericCodeName(p.productName))
 
         // Filter by category
         if (categoryFilter !== "all") {
             filtered = filtered.filter(p => p.categoryId?.toString() === categoryFilter)
         }
-        filtered = filtered.filter(p => !isNumericCodeName(p.productName))
 
         // Filter by search term
-        if (searchTerm.trim()) {
-            const term = searchTerm.toLowerCase()
+        const term = normalizeSearch(debouncedSearchTerm)
+        if (term) {
             filtered = filtered.filter(p =>
-                p.productName?.toLowerCase().includes(term) ||
-                p.sku?.toLowerCase().includes(term) ||
-                p.barcode?.toLowerCase().includes(term)
+                normalizeSearch(p.productName).includes(term) ||
+                normalizeSearch(p.sku).includes(term) ||
+                normalizeSearch(p.barcode).includes(term)
             )
         }
 
-        return filtered.slice(0, 50)
-    }, [products, searchTerm, vendorStocks, categoryFilter])
+        return filtered
+    }, [products, debouncedSearchTerm, categoryFilter])
+
+    const visibleProducts = useMemo(
+        () => matchedProducts.slice(0, visibleCount).map(p => ({
+            ...p,
+            currentStock: vendorStocks[p.id] || 0,
+        })),
+        [matchedProducts, visibleCount, vendorStocks],
+    )
 
     const addToCart = (product: Product & { currentStock?: number }) => {
         const defaultCost = productPrices[product.id] || 0
@@ -464,7 +475,7 @@ export default function CargarMercanciaPage() {
                         {/* Grid de productos - SCROLLABLE */}
                         <div className="flex-1 overflow-y-auto scrollbar-thin bg-white rounded-xl border border-gray-200 p-3">
                             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                                {filteredProducts.map(product => (
+                                {visibleProducts.map(product => (
                                     <div
                                         key={product.id}
                                         onClick={() => addToCart(product)}
@@ -497,10 +508,21 @@ export default function CargarMercanciaPage() {
                                     </div>
                                 ))}
                             </div>
-                            {filteredProducts.length === 0 && (
+                            {matchedProducts.length === 0 && (
                                 <p className="text-center text-gray-400 text-sm py-8">
                                     {searchTerm ? "No se encontraron productos" : "No hay productos registrados"}
                                 </p>
+                            )}
+                            {matchedProducts.length > visibleProducts.length && (
+                                <div className="flex justify-center pt-3">
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => setVisibleCount(c => c + 50)}
+                                        className="text-sm"
+                                    >
+                                        Ver más ({matchedProducts.length - visibleProducts.length} restantes)
+                                    </Button>
+                                </div>
                             )}
                         </div>
                     </div>

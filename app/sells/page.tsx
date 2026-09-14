@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Navigation } from "@/components/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -38,7 +38,8 @@ import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { todayLocalISO } from "@/lib/utils/date"
-import { isNumericCodeName } from "@/lib/utils/product"
+import { isNumericCodeName, normalizeSearch } from "@/lib/utils/product"
+import { useDebounce } from "@/hooks/use-debounce"
 
 // --- TYPES ---
 interface SellItem {
@@ -76,6 +77,7 @@ export default function SellsPage() {
 
   // Search & Filter State
   const [productSearchTerm, setProductSearchTerm] = useState("")
+  const debouncedProductSearch = useDebounce(productSearchTerm, 300)
   const [selectedCategory, setSelectedCategory] = useState("all")
 
   // Mobile Tab State
@@ -538,12 +540,24 @@ export default function SellsPage() {
   }
 
   // --- FILTERED STOCKS ---
-  const filteredStocks = stocks.filter(stock => {
-    const matchSearch = stock.products?.productName.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
-      stock.productCode?.toLowerCase().includes(productSearchTerm.toLowerCase())
+  const filteredStocks = useMemo(() => stocks.filter(stock => {
+    const term = normalizeSearch(debouncedProductSearch)
+    const matchSearch = !term ||
+      normalizeSearch(stock.products?.productName).includes(term) ||
+      normalizeSearch(stock.productCode).includes(term)
     const matchCat = selectedCategory === "all" || stock.categoryId?.toString() === selectedCategory
     return matchSearch && matchCat && !isNumericCodeName(stock.products?.productName)
-  })
+  }), [stocks, debouncedProductSearch, selectedCategory])
+
+  const [visibleCount, setVisibleCount] = useState(100)
+  useEffect(() => {
+    setVisibleCount(100)
+  }, [debouncedProductSearch, selectedCategory])
+
+  const visibleStocks = useMemo(
+    () => filteredStocks.slice(0, visibleCount),
+    [filteredStocks, visibleCount],
+  )
 
   return (
     <div className="flex h-screen bg-background overflow-hidden font-sans">
@@ -620,7 +634,7 @@ export default function SellsPage() {
           {/* Product Grid */}
           <div className="flex-1 overflow-y-auto scrollbar-thin pb-4">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-              {filteredStocks.map((stock) => {
+              {visibleStocks.map((stock) => {
                 const isOutOfStock = (stock.currentQuantity ?? 0) <= 0
                 return (
                 <motion.div
@@ -729,6 +743,17 @@ export default function SellsPage() {
                 </motion.div>
                 )
               })}
+              {filteredStocks.length > visibleStocks.length && (
+                <div className="col-span-full flex justify-center py-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setVisibleCount(c => c + 100)}
+                    className="text-sm"
+                  >
+                    Ver más ({filteredStocks.length - visibleStocks.length} restantes)
+                  </Button>
+                </div>
+              )}
               {filteredStocks.length === 0 && (
                 <div className="col-span-full flex flex-col items-center justify-center h-40 text-gray-500 text-sm">
                   <Package className="w-8 h-8 mb-2 opacity-20" />

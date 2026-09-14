@@ -19,6 +19,21 @@ export class ProductsRepository {
     return (data ?? []).map((row) => toCamelCaseKeys<Product>(row))
   }
 
+  // Búsqueda en servidor sobre TODA la tabla (los list() están limitados a 500)
+  async search(term: string, limit = 200): Promise<Product[]> {
+    const clean = term.replace(/[,()%]/g, '').trim()
+    if (!clean) return []
+    const pattern = `%${clean}%`
+    const { data, error } = await this.client
+      .from('products')
+      .select(`*, categories(name), vendors(name), stocks(current_quantity, buying_price, selling_price)`)
+      .or(`product_name.ilike.${pattern},sku.ilike.${pattern},barcode.ilike.${pattern},details.ilike.${pattern}`)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+    if (error) throw error
+    return (data ?? []).map((row) => toCamelCaseKeys<Product>(row))
+  }
+
   async create(input: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'categories'>): Promise<Product> {
     const payload = toSnakeCaseKeys(input)
     const { data, error } = await this.client

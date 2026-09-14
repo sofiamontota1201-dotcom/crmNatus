@@ -1,7 +1,7 @@
 
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -10,11 +10,14 @@ import { Label } from "@/components/ui/label"
 import { supabase } from "@/lib/supabase"
 import { ReportsRepository, InventoryValuationItem } from "@/lib/repositories/reportsRepository"
 import { FileDown, Package, AlertTriangle, BarChart3, Search, CheckCircle, BookUser } from "lucide-react"
+import { normalizeSearch } from "@/lib/utils/product"
+import { useDebounce } from "@/hooks/use-debounce"
 
 export function InventoryReport() {
     const [loading, setLoading] = useState(true)
     const [items, setItems] = useState<InventoryValuationItem[]>([])
     const [searchTerm, setSearchTerm] = useState("")
+    const debouncedSearch = useDebounce(searchTerm, 300)
     const [showOnlyZeroStock, setShowOnlyZeroStock] = useState(false)
     const repo = new ReportsRepository(supabase)
 
@@ -34,20 +37,22 @@ export function InventoryReport() {
         }
     }
 
-    const totalStockValue = items.reduce((acc, item) => acc + item.totalValue, 0)
-    const lowStockItems = items.filter(i => i.currentQuantity <= 10).length
-    const outOfStockItems = items.filter(i => i.currentQuantity === 0).length
+    const totalStockValue = useMemo(() => items.reduce((acc, item) => acc + item.totalValue, 0), [items])
+    const lowStockItems = useMemo(() => items.filter(i => i.currentQuantity <= 10).length, [items])
+    const outOfStockItems = useMemo(() => items.filter(i => i.currentQuantity === 0).length, [items])
 
-    const filteredItems = items.filter(item => {
-        const matchesSearch = item.products?.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            item.productCode?.toLowerCase().includes(searchTerm.toLowerCase())
-        
+    const filteredItems = useMemo(() => items.filter(item => {
+        const term = normalizeSearch(debouncedSearch)
+        const matchesSearch = !term ||
+            normalizeSearch(item.products?.productName).includes(term) ||
+            normalizeSearch(item.productCode).includes(term)
+
         if (showOnlyZeroStock) {
             return matchesSearch && item.currentQuantity === 0
         }
-        
+
         return matchesSearch
-    })
+    }), [items, debouncedSearch, showOnlyZeroStock])
 
     const exportPDF = async () => {
         const [jsPDFMod, autoTableMod] = await Promise.all([

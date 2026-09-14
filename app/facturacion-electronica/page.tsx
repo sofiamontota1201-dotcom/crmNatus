@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Navigation } from "@/components/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Mail, Send, CheckCircle2, User, FileText, AlertCircle, DollarSign, Search, ChevronDown, Check } from "lucide-react"
@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/lib/supabase"
 import { SellsRepository } from "@/lib/repositories/sellsRepository"
+import { normalizeSearch } from "@/lib/utils/product"
+import { useDebounce } from "@/hooks/use-debounce"
 
 export default function FacturacionPage() {
   const { toast } = useToast()
@@ -18,6 +20,7 @@ export default function FacturacionPage() {
   const [sales, setSales] = useState<any[]>([])
   const [loadingSales, setLoadingSales] = useState(true)
   const [searchSaleTerm, setSearchSaleTerm] = useState("")
+  const debouncedSaleTerm = useDebounce(searchSaleTerm, 300)
   const [showSalesDropdown, setShowSalesDropdown] = useState(false)
 
   // Form States
@@ -50,10 +53,14 @@ export default function FacturacionPage() {
   }
 
   // Filtrar facturas
-  const filteredSales = sales.filter(sale =>
-    String(sale.id).includes(searchSaleTerm) ||
-    (sale.customers?.customerName || "").toLowerCase().includes(searchSaleTerm.toLowerCase())
-  ).slice(0, 10) // Mostrar solo últimas 10
+  const filteredSales = useMemo(() => sales.filter(sale => {
+    const term = normalizeSearch(debouncedSaleTerm)
+    if (!term) return true
+    return (
+      String(sale.id).includes(term) ||
+      normalizeSearch(sale.customers?.customerName).includes(term)
+    )
+  }).slice(0, 10), [sales, debouncedSaleTerm]) // Mostrar solo últimas 10
 
   const handleSelectSale = async (sale: any) => {
     // Buscar detalles completos

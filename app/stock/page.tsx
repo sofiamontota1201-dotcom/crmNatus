@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Navigation } from "@/components/navigation"
 import { Button } from "@/components/ui/button"
@@ -31,7 +31,7 @@ import { Plus, Edit, Trash2, Package, AlertTriangle, Search, X, RefreshCcw, Tag,
 import { useToast } from "@/hooks/use-toast"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
-import { isNumericCodeName } from "@/lib/utils/product"
+import { isNumericCodeName, normalizeSearch } from "@/lib/utils/product"
 import { useDebounce } from "@/hooks/use-debounce"
 
 export default function StockPage() {
@@ -290,19 +290,52 @@ export default function StockPage() {
     }
   };
 
-  const filteredStocks = stocks.filter((stock) => {
-    const matchesSearch = (stock.products?.productName || "").toLowerCase().includes(debouncedMainSearch.toLowerCase()) ||
-      (stock.productCode || "").toLowerCase().includes(debouncedMainSearch.toLowerCase())
+  // Búsqueda en servidor: trae coincidencias de TODA la tabla (los 500 iniciales no cubren todo el inventario)
+  const [remoteStocks, setRemoteStocks] = useState<Stock[]>([])
+  useEffect(() => {
+    const term = normalizeSearch(debouncedMainSearch)
+    if (term.length < 2) {
+      setRemoteStocks([])
+      return
+    }
+    let cancelled = false
+    stocksRepository.search(term)
+      .then((results) => { if (!cancelled) setRemoteStocks(results) })
+      .catch(() => { })
+    return () => { cancelled = true }
+  }, [debouncedMainSearch])
+
+  const stockPool = useMemo(() => {
+    if (remoteStocks.length === 0) return stocks
+    const seen = new Set(remoteStocks.map(s => s.id))
+    return [...remoteStocks, ...stocks.filter(s => !seen.has(s.id))]
+  }, [remoteStocks, stocks])
+
+  const filteredStocks = useMemo(() => stockPool.filter((stock) => {
+    const term = normalizeSearch(debouncedMainSearch)
+    const matchesSearch = !term ||
+      normalizeSearch(stock.products?.productName).includes(term) ||
+      normalizeSearch(stock.productCode).includes(term)
     const matchesCategory = mainSelectedCategory === "all" || stock.categoryId?.toString() === mainSelectedCategory
     return matchesSearch && matchesCategory && !isNumericCodeName(stock.products?.productName)
-  })
+  }), [stockPool, debouncedMainSearch, mainSelectedCategory])
+
+  const [visibleCount, setVisibleCount] = useState(100)
+  useEffect(() => {
+    setVisibleCount(100)
+  }, [debouncedMainSearch, mainSelectedCategory])
+
+  const visibleStocks = useMemo(
+    () => filteredStocks.slice(0, visibleCount),
+    [filteredStocks, visibleCount],
+  )
 
   // Modal product filter
-  const modalFilteredProducts = products.filter(p =>
-    (!debouncedSearch || p.productName.toLowerCase().includes(debouncedSearch.toLowerCase())) &&
+  const modalFilteredProducts = useMemo(() => products.filter(p =>
+    (!debouncedSearch || normalizeSearch(p.productName).includes(normalizeSearch(debouncedSearch))) &&
     (!selectedCategory || selectedCategory === "all" || p.categoryId?.toString() === selectedCategory) &&
     !isNumericCodeName(p.productName)
-  )
+  ), [products, debouncedSearch, selectedCategory])
 
   if (loading && stocks.length === 0) return (
     <div className="flex bg-background min-h-screen">
@@ -563,7 +596,7 @@ export default function StockPage() {
         {/* Stock List Grid */}
         <div className="grid gap-6 pb-32">
           <AnimatePresence>
-            {filteredStocks.map((stock) => (
+            {visibleStocks.map((stock) => (
               <motion.div
                 key={stock.id}
                 initial={{ opacity: 0, y: 10 }}
@@ -689,6 +722,18 @@ export default function StockPage() {
               </motion.div>
             ))}
           </AnimatePresence>
+
+          {filteredStocks.length > visibleStocks.length && (
+            <div className="flex justify-center pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setVisibleCount(c => c + 100)}
+                className="text-sm"
+              >
+                Ver más ({filteredStocks.length - visibleStocks.length} restantes)
+              </Button>
+            </div>
+          )}
 
           {filteredStocks.length === 0 && (
             <div className="py-20 text-center space-y-4">

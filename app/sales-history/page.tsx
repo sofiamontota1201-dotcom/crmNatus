@@ -25,8 +25,9 @@ import { Search, ShoppingBag, User, Calendar, DollarSign, ChevronRight, Package,
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { parseLocalDate, todayLocalISO } from "@/lib/utils/date"
-import { isNumericCodeName } from "@/lib/utils/product"
+import { isNumericCodeName, normalizeSearch } from "@/lib/utils/product"
 import { useToast } from "@/hooks/use-toast"
+import { useDebounce } from "@/hooks/use-debounce"
 
 interface CartItem {
     stockId: string
@@ -43,6 +44,7 @@ export default function SalesHistoryPage() {
     const [sales, setSales] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState("")
+    const debouncedSearch = useDebounce(searchTerm, 300)
     const [selectedDate, setSelectedDate] = useState(() => todayLocalISO())
     const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: todayLocalISO(), end: todayLocalISO() })
     const [dateFilter, setDateFilter] = useState<"today" | "week" | "month" | "year" | "custom">("today")
@@ -65,6 +67,7 @@ export default function SalesHistoryPage() {
     const [newSaleItems, setNewSaleItems] = useState<CartItem[]>([])
     const [newSalePaymentMethod, setNewSalePaymentMethod] = useState("0")
     const [catalogSearch, setCatalogSearch] = useState("")
+    const debouncedCatalogSearch = useDebounce(catalogSearch, 300)
     const [processingSale, setProcessingSale] = useState(false)
 
     useEffect(() => {
@@ -542,30 +545,65 @@ export default function SalesHistoryPage() {
         }
     }
 
-    const filteredSales = sales.filter(sale => {
-        const rawDate = sale.sellDate || sale.createdAt
-        const saleDate = typeof rawDate === 'string' ? rawDate.split('T')[0] : new Date(rawDate).toLocaleDateString('en-CA')
-        const range = getDateRange()
-        const matchesDate = saleDate >= range.start && saleDate <= range.end
-        const matchesSearch = (sale.customers?.customerName || "Consumidor Final").toLowerCase().includes(searchTerm.toLowerCase()) ||
-            String(sale.id).includes(searchTerm)
-        return matchesDate && matchesSearch
-    })
+    const activeRange = useMemo(() => getDateRange(), [dateFilter, dateRange])
 
-    const pendingSalesForDate = sales.filter(s => {
-        const rawDate = s.sellDate || s.createdAt
-        const saleDate = typeof rawDate === 'string' ? rawDate.split('T')[0] : new Date(rawDate).toLocaleDateString('en-CA')
-        const range = getDateRange()
+    const saleDateOf = (sale: any): string => {
+        const rawDate = sale.sellDate || sale.createdAt
+        return typeof rawDate === 'string' ? rawDate.split('T')[0] : new Date(rawDate).toLocaleDateString('en-CA')
+    }
+
+    const filteredSales = useMemo(() => sales.filter(sale => {
+        const saleDate = saleDateOf(sale)
+        const matchesDate = saleDate >= activeRange.start && saleDate <= activeRange.end
+        const term = normalizeSearch(debouncedSearch)
+        const matchesSearch = !term ||
+            normalizeSearch(sale.customers?.customerName || "Consumidor Final").includes(term) ||
+            String(sale.id).includes(term)
+        return matchesDate && matchesSearch
+    }), [sales, activeRange, debouncedSearch])
+
+    const pendingSalesForDate = useMemo(() => sales.filter(s => {
+        const saleDate = saleDateOf(s)
         return s.paymentStatus === 0 &&
             s.paymentStatus !== 3 &&
-            saleDate >= range.start && saleDate <= range.end
-    })
+            saleDate >= activeRange.start && saleDate <= activeRange.end
+    }), [sales, activeRange])
 
-    const pendingTotal = pendingSalesForDate.reduce((sum: number, s: any) => sum + (s.totalAmount || 0), 0)
+    const pendingTotal = useMemo(() => pendingSalesForDate.reduce((sum: number, s: any) => sum + (s.totalAmount || 0), 0), [pendingSalesForDate])
 
-    const activeSales = filteredSales.filter((s: any) => s.paymentStatus !== 3)
-    const dailyTotal = activeSales.reduce((sum: number, s: any) => sum + (s.totalAmount || 0), 0)
+    const activeSales = useMemo(() => filteredSales.filter((s: any) => s.paymentStatus !== 3), [filteredSales])
+    const dailyTotal = useMemo(() => activeSales.reduce((sum: number, s: any) => sum + (s.totalAmount || 0), 0), [activeSales])
     const dailyCount = activeSales.length
+
+    // Búsqueda en servidor para el catálogo: cubre todo el inventario, no solo los 500 iniciales
+    const [remoteCatalogStocks, setRemoteCatalogStocks] = useState<any[]>([])
+    useEffect(() => {
+        const term = normalizeSearch(debouncedCatalogSearch)
+        if (term.length < 2) {
+            setRemoteCatalogStocks([])
+            return
+        }
+        let cancelled = false
+        stocksRepository.search(term)
+            .then((results) => { if (!cancelled) setRemoteCatalogStocks(results) })
+            .catch(() => { })
+        return () => { cancelled = true }
+    }, [debouncedCatalogSearch])
+
+    const catalogStocks = useMemo(() => {
+        const pool = remoteCatalogStocks.length === 0
+            ? stocks
+            : (() => {
+                const seen = new Set(remoteCatalogStocks.map((s: any) => s.id))
+                return [...remoteCatalogStocks, ...stocks.filter((s: any) => !seen.has(s.id))]
+            })()
+        const term = normalizeSearch(debouncedCatalogSearch)
+        return pool.filter((s: any) => {
+            if (!term) return !isNumericCodeName(s.products?.productName)
+            return (normalizeSearch(s.products?.productName).includes(term) ||
+                normalizeSearch(s.productCode).includes(term)) && !isNumericCodeName(s.products?.productName)
+        })
+    }, [stocks, remoteCatalogStocks, debouncedCatalogSearch])
 
     const isQuote = selectedSale?.paymentStatus === 0
 
@@ -1664,11 +1702,7 @@ export default function SalesHistoryPage() {
                             <div>
                                 <Label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 block">Productos Disponibles</Label>
                                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-h-48 overflow-y-auto scrollbar-thin">
-                                    {stocks
-                                       .filter((s: any) => {
-                                           const name = s.products?.productName || ""
-                                           return name.toLowerCase().includes(catalogSearch.toLowerCase()) && !isNumericCodeName(name)
-                                       })
+                                    {catalogStocks
                                         .map((stock: any) => (
                                             <div key={stock.id} className="p-3 bg-gray-50 border border-gray-200 rounded-xl hover:border-primary hover:bg-primary/5 transition-all group">
                                                 <p className="text-xs font-bold text-gray-800 truncate group-hover:text-primary">{stock.products?.productName || 'Producto'}</p>

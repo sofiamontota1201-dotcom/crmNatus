@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from 'next/navigation'
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Navigation } from "@/components/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -24,6 +24,8 @@ import { CategoriesRepository } from "@/lib/repositories/categoriesRepository"
 import { Plus, Edit, Trash2, Tag, Search } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { motion, AnimatePresence } from "framer-motion"
+import { normalizeSearch } from "@/lib/utils/product"
+import { useDebounce } from "@/hooks/use-debounce"
 
 export default function CategoriesPage() {
   const router = useRouter()
@@ -31,6 +33,7 @@ export default function CategoriesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
+  const debouncedSearch = useDebounce(searchTerm, 300)
   const { toast } = useToast()
 
   const [formData, setFormData] = useState({
@@ -98,8 +101,14 @@ export default function CategoriesPage() {
     setIsDialogOpen(true)
   }
 
-  const filteredCategories = categories.filter((category) =>
-    category.name.toLowerCase().includes(searchTerm.toLowerCase()),
+  const filteredCategories = useMemo(
+    () =>
+      categories.filter((category) => {
+        const term = normalizeSearch(debouncedSearch)
+        if (!term) return true
+        return category.name.toLowerCase().includes(term)
+      }),
+    [categories, debouncedSearch],
   )
 
   return (

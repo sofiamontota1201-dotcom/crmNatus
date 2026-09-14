@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Navigation } from "@/components/navigation"
 import { Button } from "@/components/ui/button"
@@ -24,6 +24,8 @@ import type { Vendor, MerchandiseLoad } from "@/types/domain"
 import { VendorsRepository } from "@/lib/repositories/vendorsRepository"
 import { Plus, Edit, Trash2, Phone, Mail, MapPin, Truck, DollarSign, Package } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { normalizeSearch } from "@/lib/utils/product"
+import { useDebounce } from "@/hooks/use-debounce"
 
 interface VendorStats {
   vendorId: number
@@ -39,6 +41,7 @@ export default function VendorsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
+  const debouncedSearch = useDebounce(searchTerm, 300)
   const { toast } = useToast()
 
   const [formData, setFormData] = useState({
@@ -151,11 +154,18 @@ export default function VendorsPage() {
     setIsDialogOpen(true)
   }
 
-  const filteredVendors = vendors.filter(
-    (vendor) =>
-      vendor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      vendor.phone.includes(searchTerm) ||
-      (vendor.email && vendor.email.toLowerCase().includes(searchTerm.toLowerCase())),
+  const filteredVendors = useMemo(
+    () =>
+      vendors.filter((vendor) => {
+        const term = normalizeSearch(debouncedSearch)
+        if (!term) return true
+        return (
+          vendor.name.toLowerCase().includes(term) ||
+          normalizeSearch(vendor.phone).includes(term) ||
+          normalizeSearch(vendor.email).includes(term)
+        )
+      }),
+    [vendors, debouncedSearch],
   )
 
 

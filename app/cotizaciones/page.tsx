@@ -1,8 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { createClient } from "@supabase/supabase-js"
 import { Phone, Package, Calendar, Clock, Search } from "lucide-react"
+import { normalizeSearch } from "@/lib/utils/product"
+import { useDebounce } from "@/hooks/use-debounce"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -35,6 +37,7 @@ export default function CotizacionesPage() {
   const [cotizaciones, setCotizaciones] = useState<Cotizacion[]>([])
   const [loading, setLoading] = useState(true)
   const [busqueda, setBusqueda] = useState("")
+  const debouncedBusqueda = useDebounce(busqueda, 300)
   const [expandido, setExpandido] = useState<number | null>(null)
 
   useEffect(() => {
@@ -88,14 +91,14 @@ export default function CotizacionesPage() {
     }).format(valor)
   }
 
-  const filtradas = cotizaciones.filter((c) => {
-    if (!busqueda) return true
-    const termino = busqueda.toLowerCase()
+  const filtradas = useMemo(() => cotizaciones.filter((c) => {
+    const termino = normalizeSearch(debouncedBusqueda)
+    if (!termino) return true
     return (
       c.customers?.customer_name?.toLowerCase().includes(termino) ||
-      c.customers?.phone?.includes(termino)
+      normalizeSearch(c.customers?.phone).includes(termino)
     )
-  })
+  }), [cotizaciones, debouncedBusqueda])
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Navigation } from "@/components/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -11,6 +11,8 @@ import Link from "next/link"
 import { SyncButton } from "./sync-button"
 import { EditForm } from "./edit-form"
 import { motion, AnimatePresence } from "framer-motion"
+import { normalizeSearch } from "@/lib/utils/product"
+import { useDebounce } from "@/hooks/use-debounce"
 
 interface EmployeesClientProps {
   employees: any[]
@@ -21,18 +23,23 @@ export function EmployeesClient({ employees: initialEmployees, isAdmin }: Employ
   const [employees, setEmployees] = useState(initialEmployees)
   const [editingEmployee, setEditingEmployee] = useState<any>(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const debouncedSearch = useDebounce(searchTerm, 300)
 
   const handleEditSave = () => {
     setEditingEmployee(null)
     window.location.reload()
   }
 
-  const filteredEmployees = employees.filter(emp =>
-    emp.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (emp.cedula && emp.cedula.includes(searchTerm))
-  )
+  const filteredEmployees = useMemo(() => employees.filter(emp => {
+    const term = normalizeSearch(debouncedSearch)
+    if (!term) return true
+    return (
+      emp.first_name.toLowerCase().includes(term) ||
+      emp.last_name.toLowerCase().includes(term) ||
+      emp.email.toLowerCase().includes(term) ||
+      normalizeSearch(emp.cedula).includes(term)
+    )
+  }), [employees, debouncedSearch])
 
   const statusConfig: Record<string, { badge: string; color: string }> = {
     active: { badge: 'EMPLEADO ACTIVO', color: 'bg-green-500/10 border-green-500/20 text-green-400' },

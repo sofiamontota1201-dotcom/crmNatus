@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Navigation } from "@/components/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -24,12 +24,15 @@ import { CustomersRepository } from "@/lib/repositories/customersRepository"
 import { Plus, Edit, Trash2, Phone, Mail, MapPin, User, Search, IdCard } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { motion, AnimatePresence } from "framer-motion"
+import { normalizeSearch } from "@/lib/utils/product"
+import { useDebounce } from "@/hooks/use-debounce"
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
+  const debouncedSearch = useDebounce(searchTerm, 300)
   const { toast } = useToast()
 
   const [formData, setFormData] = useState({
@@ -119,12 +122,19 @@ export default function CustomersPage() {
     setIsDialogOpen(true)
   }
 
-  const filteredCustomers = customers.filter(
-    (customer) =>
-      customer.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (customer.phone && customer.phone.includes(searchTerm)) ||
-      (customer.email && customer.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (customer.cedula && customer.cedula.includes(searchTerm)),
+  const filteredCustomers = useMemo(
+    () =>
+      customers.filter((customer) => {
+        const term = normalizeSearch(debouncedSearch)
+        if (!term) return true
+        return (
+          customer.customerName.toLowerCase().includes(term) ||
+          normalizeSearch(customer.phone).includes(term) ||
+          normalizeSearch(customer.email).includes(term) ||
+          normalizeSearch(customer.cedula).includes(term)
+        )
+      }),
+    [customers, debouncedSearch],
   )
 
   return (
