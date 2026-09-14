@@ -205,7 +205,7 @@ export default function FacturacionPage() {
       doc.setFont("helvetica", "bold");
       doc.text("Ciudad:", 14, yPos);
       doc.setFont("helvetica", "normal");
-      doc.text("MEDELLÍN", 40, yPos);
+      doc.text((sale.customers?.city || "PALOCABILDO").toUpperCase(), 40, yPos);
       doc.setFont("helvetica", "bold");
       doc.text("País:", 80, yPos);
       doc.setFont("helvetica", "normal");
