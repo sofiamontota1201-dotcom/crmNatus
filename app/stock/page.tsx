@@ -43,6 +43,7 @@ export default function StockPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingStock, setEditingStock] = useState<Stock | null>(null)
+  const [activeTab, setActiveTab] = useState("search")
 
   // Search & Filters
   const [searchTerm, setSearchTerm] = useState("")
@@ -188,6 +189,7 @@ export default function StockPage() {
       note: "",
     })
     setEditingStock(null)
+    setActiveTab("search")
   }
 
   const openEditDialog = (stock: Stock) => {
@@ -205,6 +207,7 @@ export default function StockPage() {
       addQuantity: "0",
       note: stock.note || "",
     })
+    setActiveTab("form")
     setIsDialogOpen(true)
   }
 
@@ -427,7 +430,7 @@ export default function StockPage() {
                   </DialogDescription>
                 </DialogHeader>
 
-                <Tabs defaultValue="search" className="mt-4">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
                   <TabsList className="grid w-full grid-cols-2 bg-gray-50 border border-gray-200 p-1 mb-6 h-auto">
                     <TabsTrigger value="search" className="data-[state=active]:bg-primary text-xs sm:text-sm py-2">1. Buscar Producto</TabsTrigger>
                     <TabsTrigger value="form" className="data-[state=active]:bg-primary text-xs sm:text-sm py-2">2. Detalles del Lote</TabsTrigger>
@@ -734,7 +737,7 @@ export default function StockPage() {
                           className="w-full flex items-center justify-center gap-2 border-gray-200 text-gray-600 hover:text-gray-800 hover:bg-gray-100 h-9"
                         >
                           <Edit className="w-3.5 h-3.5" />
-                          Editar
+                          Actualizar producto
                         </Button>
                         <Button
                           variant="outline"
