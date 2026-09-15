@@ -76,7 +76,7 @@ export function RoleChangeForm({
         value={selectedRoleId}
         onChange={(e) => setSelectedRoleId(parseInt(e.target.value))}
         disabled={loading}
-        className="px-3 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-white focus:outline-none focus:border-primary/50 hover:border-white/20 transition-colors"
+        className="px-3 py-2 text-sm rounded-lg bg-white border border-gray-200 text-gray-800 focus:outline-none focus:border-primary/50 hover:border-gray-300 transition-colors"
       >
         {roles.map((role) => (
           <option key={role.id} value={role.id}>

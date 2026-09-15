@@ -19,14 +19,15 @@ async function getEmployees() {
     }
   )
 
-  const { data: { session } } = await sb.auth.getSession()
-  if (!session) redirect("/login")
+  const { data: { user } } = await sb.auth.getUser()
+  if (!user) redirect("/login")
 
-  const permissions = await getUserPermissions(sb, session.user.id)
+  const permissions = await getUserPermissions(sb, user.id)
 
-  const isAllowed = 
+  const isAllowed =
     permissions.role === 'Superadministrador' ||
     permissions.role === 'Gerente' ||
+    permissions.role === 'admin' ||
     hasPermission(permissions, 'employees_view')
 
   if (!isAllowed) {

@@ -18,19 +18,19 @@ export async function GET() {
       }
     )
 
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     // Obtener permisos del usuario actual
-    const permissions = await getUserPermissions(supabase, session.user.id)
+    const permissions = await getUserPermissions(supabase, user.id)
 
     return Response.json({
       success: true,
       data: {
-        userId: session.user.id,
-        email: session.user.email,
+        userId: user.id,
+        email: user.email,
         permissions: permissions.permissions,
         role: permissions.role,
         status: permissions.status,

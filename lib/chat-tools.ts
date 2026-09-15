@@ -1,5 +1,22 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 
+// Whitelist de tablas/columnas consultables por la tool query_supabase.
+// El LLM NO puede leer tablas sensibles (employees, role_permissions, auth, etc.)
+// ni columnas fuera de esta lista.
+const QUERY_SUPABASE_WHITELIST: Record<string, Set<string>> = {
+    products: new Set(['id', 'product_name', 'details', 'barcode', 'sku', 'status', 'category_id']),
+    stocks: new Set(['id', 'product_id', 'product_code', 'current_quantity', 'buying_price', 'selling_price', 'status']),
+    categories: new Set(['id', 'name', 'status']),
+    vendors: new Set(['id', 'name', 'phone']),
+    customers: new Set(['id', 'customer_name', 'phone', 'city']),
+    sells: new Set(['id', 'total_amount', 'discount_amount', 'sell_date', 'payment_status', 'payment_method', 'customer_id', 'created_at']),
+};
+
+function isAllowedColumn(table: string, column: string): boolean {
+    const allowed = QUERY_SUPABASE_WHITELIST[table]
+    return !!allowed && allowed.has(column.trim())
+}
+
 // Definición mejorada de las herramientas con validación estricta
 // Los parámetros `limit` fueron eliminados del schema para evitar que Groq
 // rechace con error 400 cuando el LLM los envía como string.
@@ -335,14 +352,26 @@ export async function executeTool(toolName: string, args: any, supabase: Supabas
                     return JSON.stringify({ error: 'Falta table o select en los parámetros' });
                 }
 
+                const allowed = QUERY_SUPABASE_WHITELIST[args.table];
+                if (!allowed) {
+                    return JSON.stringify({ error: `Tabla no disponible: ${args.table}` });
+                }
+
+                // Validar columnas del select (lista plana separada por comas, sin relaciones anidadas)
+                const selectColumns = String(args.select).split(',').map((c: string) => c.trim());
+                if (selectColumns.some((c: string) => !isAllowedColumn(args.table, c))) {
+                    return JSON.stringify({ error: 'Columna(s) no disponible(s) para esta tabla' });
+                }
+
                 console.log(`🔍 Construyendo query dinámica para: ${args.table}`);
-                let query: any = supabase.from(args.table).select(args.select);
+                let query: any = supabase.from(args.table).select(selectColumns.join(','));
 
                 // Aplicar filtros dinámicamente
                 if (args.filters && Array.isArray(args.filters)) {
                     for (const f of args.filters) {
                         if (!f.column || !f.operator || f.value === undefined) continue;
-                        
+                        if (!isAllowedColumn(args.table, f.column)) continue;
+
                         switch (f.operator) {
                             case 'eq': query = query.eq(f.column, f.value); break;
                             case 'ilike': query = query.ilike(f.column, `%${f.value}%`); break;
@@ -356,6 +385,9 @@ export async function executeTool(toolName: string, args: any, supabase: Supabas
 
                 // Ordenar
                 if (args.orderColumn) {
+                    if (!isAllowedColumn(args.table, args.orderColumn)) {
+                        return JSON.stringify({ error: 'Columna de orden no disponible' });
+                    }
                     query = query.order(args.orderColumn, { ascending: args.ascending !== false });
                 }
 

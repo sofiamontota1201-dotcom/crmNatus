@@ -11,7 +11,7 @@ import { getUserPermissions } from "@/lib/permissions"
 
 async function getDashboardData(s: SupabaseClient<any, any, any>) {
   const { data: { user } } = await s.auth.getUser()
-  if (!user) throw new Error('User not authenticated')
+  if (!user) redirect("/login")
 
   const permissions = await getUserPermissions(s, user.id)
   const userFilter = undefined
@@ -135,9 +135,6 @@ export default async function Dashboard() {
       },
     }
   )
-
-  const { data: { session } } = await sb.auth.getSession()
-  if (!session) redirect("/login")
 
   const {
     totalProducts,

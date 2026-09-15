@@ -22,10 +22,10 @@ export async function GET(
       }
     )
 
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const permissions = await getUserPermissions(supabase, session.user.id)
+    const permissions = await getUserPermissions(supabase, user.id)
     if (!hasPermission(permissions, 'permissions_assign')) {
       return Response.json({ error: 'Forbidden' }, { status: 403 })
     }
@@ -71,10 +71,10 @@ export async function POST(
       }
     )
 
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const permissions = await getUserPermissions(supabase, session.user.id)
+    const permissions = await getUserPermissions(supabase, user.id)
     if (!hasPermission(permissions, 'permissions_assign')) {
       return Response.json({ error: 'Forbidden' }, { status: 403 })
     }
@@ -103,7 +103,7 @@ export async function POST(
 
     // Registrar en auditoría
     await supabase.from('audit_logs').insert([{
-      user_id: session.user.id,
+      user_id: user.id,
       action: 'UPDATE',
       entity_type: 'role_permissions',
       entity_id: parseInt(id),

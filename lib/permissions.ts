@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-export type UserRole = 'Superadministrador' | 'Vendedor' | 'Gerente' | 'Controlador' | 'custom'
+export type UserRole = 'Superadministrador' | 'Vendedor' | 'Gerente' | 'Controlador' | 'admin' | 'vendedor' | 'bodeguero' | 'custom'
 
 export interface UserPermissions {
   userId: string

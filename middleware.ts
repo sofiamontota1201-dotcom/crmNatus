@@ -21,6 +21,19 @@ export async function middleware(request: NextRequest) {
 
   // Only check session for protected routes (not login, not public API health checks)
   if (!isApi || pathname !== '/api/health') {
+    // Páginas: check barato de cookie (0 red). Cada página valida su propia sesión
+    // con getUser() en el servidor; el middleware solo redirige si no hay cookie.
+    if (!isApi) {
+      const hasSessionCookie = request.cookies
+        .getAll()
+        .some((c) => c.name.startsWith('sb-') && c.name.endsWith('-auth-token'))
+      if (!hasSessionCookie) {
+        return NextResponse.redirect(new URL('/login', request.url))
+      }
+      return response
+    }
+
+    // APIs: validación real del JWT (necesaria para rate-limit por user y 401s)
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
@@ -40,29 +53,35 @@ export async function middleware(request: NextRequest) {
     )
 
     let session = null
+    let timer: ReturnType<typeof setTimeout> | undefined
     try {
-      // Use a shorter timeout for session check
-      const sessionPromise = supabase.auth.getSession()
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('timeout')), 3000) // 3 second timeout
-      )
-      
+      // getUser() valida el JWT contra Supabase Auth (getSession() confía en la cookie sin verificar)
+      // Tope de 3s para no colgar la request si Supabase Auth degrada
+      const userPromise = supabase.auth.getUser()
+      const timeoutPromise = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('timeout')), 3000)
+      })
+      // Evita unhandled rejection si el timeout pierde la carrera
+      timeoutPromise.catch(() => {})
+
       const {
-        data: { session: currentSession },
+        data: { user },
         error,
-      } = await Promise.race([sessionPromise, timeoutPromise]) as any
-      
+      } = (await Promise.race([userPromise, timeoutPromise])) as any
+
       if (error) {
         // Clear cookies to prevent infinite refresh error spam if token is invalid
         const cookiesToClear = request.cookies.getAll().filter((c) => c.name.startsWith('sb-'))
         cookiesToClear.forEach((c) => {
           response.cookies.set(c.name, '', { maxAge: -1 })
         })
-      } else {
-        session = currentSession
+      } else if (user) {
+        session = { user }
       }
     } catch (e) {
-      // Fail-safe: assume no session if check times out
+      // Fail-safe: assume no session if check fails
+    } finally {
+      if (timer) clearTimeout(timer)
     }
 
     // Rate limit for API endpoints ONLY (not page requests)
@@ -84,11 +103,6 @@ export async function middleware(request: NextRequest) {
       } catch {
         // Fail open if rate limiter backend is unavailable
       }
-    }
-
-    // Redirect unauthenticated users for app pages (let API handlers return 401 themselves)
-    if (!session && !isApi) {
-      return NextResponse.redirect(new URL('/login', request.url))
     }
   }
 

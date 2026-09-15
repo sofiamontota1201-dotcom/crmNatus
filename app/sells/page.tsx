@@ -199,9 +199,10 @@ export default function SellsPage() {
 
     const loadData = async () => {
       try {
+        // Fase 1: clientes + productos con stock + categorías → render inmediato
         const [c, s, cat] = await Promise.all([
           customersRepository.listActive(),
-          stocksRepository.listForPOS(),
+          stocksRepository.listForPOSActive(),
           categoriesRepository.listActive()
         ])
         if (mounted) {
@@ -210,6 +211,10 @@ export default function SellsPage() {
           setCategories(cat)
           setLoading(false)
         }
+
+        // Fase 2 (no bloqueante): productos sin ningún lote se agregan al final
+        const noStock = await stocksRepository.listForPOSWithoutStock(s)
+        if (mounted) setStocks(prev => [...prev, ...noStock])
       } catch (err) {
         console.error("Error loading data:", err)
         toast({ title: "Error", description: "Error cargando datos del sistema", variant: "destructive" })
@@ -455,8 +460,13 @@ export default function SellsPage() {
 
       toast({ title: "¡Factura Express!", description: `Venta #${sell.id} generada` })
       clearCart()
-      const updatedStocks = await stocksRepository.listForPOS()
-      setStocks(updatedStocks.filter(s => (s.currentQuantity ?? 0) > 0 && s.status === 1))
+      // Actualizar stock en memoria (evita recargar todo el inventario del POS)
+      setStocks(prev => prev
+        .map(s => {
+          const update = stockUpdates.find(u => u.id === s.id)
+          return update ? { ...s, currentQuantity: update.currentQuantity } : s
+        })
+        .filter(s => (s.currentQuantity ?? 0) > 0 && s.status === 1))
     } catch (error) {
       console.error(error)
       toast({ title: "Error", description: "No se pudo generar la factura", variant: "destructive" })
@@ -530,8 +540,13 @@ export default function SellsPage() {
 
       toast({ title: "Venta Cargada", description: `Venta #${sell.id} cargada al historial. Pendiente de facturación.` })
       clearCart()
-      const updatedStocks = await stocksRepository.listForPOS()
-      setStocks(updatedStocks.filter(s => (s.currentQuantity ?? 0) > 0 && s.status === 1))
+      // Actualizar stock en memoria (evita recargar todo el inventario del POS)
+      setStocks(prev => prev
+        .map(s => {
+          const update = stockUpdates.find(u => u.id === s.id)
+          return update ? { ...s, currentQuantity: update.currentQuantity } : s
+        })
+        .filter(s => (s.currentQuantity ?? 0) > 0 && s.status === 1))
     } catch (error) {
       console.error(error)
       toast({ title: "Error", description: "No se pudo cargar la venta", variant: "destructive" })

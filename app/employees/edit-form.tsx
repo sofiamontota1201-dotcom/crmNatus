@@ -63,25 +63,25 @@ export function EditForm({ employee, onClose, onSave }: EditFormProps) {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="glass-panel border border-white/10 rounded-2xl p-8 max-w-md w-full bg-black/40">
+      <div className="border border-gray-200 rounded-2xl p-8 max-w-md w-full bg-white shadow-xl">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h2 className="text-2xl font-bold text-white">Editar Empleado</h2>
-            <p className="text-sm text-gray-400 mt-1">Actualiza la información del empleado</p>
+            <h2 className="text-2xl font-bold text-gray-900">Editar Empleado</h2>
+            <p className="text-sm text-gray-500 mt-1">Actualiza la información del empleado</p>
           </div>
           <button
             onClick={onClose}
             disabled={loading}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            <X className="w-5 h-5 text-gray-400" />
+            <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
 
         <div className="space-y-5 mb-8">
           {/* Nombre */}
           <div className="space-y-2">
-            <Label className="text-gray-300 flex items-center gap-2">
+            <Label className="text-gray-700 flex items-center gap-2">
               <User className="w-4 h-4" />
               Nombre
             </Label>
@@ -92,13 +92,13 @@ export function EditForm({ employee, onClose, onSave }: EditFormProps) {
               onChange={handleChange}
               disabled={loading}
               placeholder="Nombre"
-              className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 h-10 rounded-xl"
+              className="bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 h-10 rounded-xl"
             />
           </div>
 
           {/* Apellido */}
           <div className="space-y-2">
-            <Label className="text-gray-300 flex items-center gap-2">
+            <Label className="text-gray-700 flex items-center gap-2">
               <User className="w-4 h-4" />
               Apellido
             </Label>
@@ -109,13 +109,13 @@ export function EditForm({ employee, onClose, onSave }: EditFormProps) {
               onChange={handleChange}
               disabled={loading}
               placeholder="Apellido"
-              className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 h-10 rounded-xl"
+              className="bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 h-10 rounded-xl"
             />
           </div>
 
           {/* Cédula */}
           <div className="space-y-2">
-            <Label className="text-gray-300 flex items-center gap-2">
+            <Label className="text-gray-700 flex items-center gap-2">
               <IdCard className="w-4 h-4" />
               Cédula
             </Label>
@@ -126,13 +126,13 @@ export function EditForm({ employee, onClose, onSave }: EditFormProps) {
               onChange={handleChange}
               disabled={loading}
               placeholder="Ej: 1234567890"
-              className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 h-10 rounded-xl"
+              className="bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 h-10 rounded-xl"
             />
           </div>
 
           {/* Teléfono */}
           <div className="space-y-2">
-            <Label className="text-gray-300 flex items-center gap-2">
+            <Label className="text-gray-700 flex items-center gap-2">
               <Phone className="w-4 h-4" />
               Teléfono
             </Label>
@@ -143,7 +143,7 @@ export function EditForm({ employee, onClose, onSave }: EditFormProps) {
               onChange={handleChange}
               disabled={loading}
               placeholder="Ej: +57 3001234567"
-              className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 h-10 rounded-xl"
+              className="bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 h-10 rounded-xl"
             />
           </div>
         </div>
@@ -168,7 +168,7 @@ export function EditForm({ employee, onClose, onSave }: EditFormProps) {
             onClick={onClose}
             disabled={loading}
             variant="outline"
-            className="border-white/10 hover:bg-white/5 text-gray-300 rounded-xl h-10"
+            className="border-gray-200 hover:bg-gray-100 text-gray-700 rounded-xl h-10"
           >
             Cancelar
           </Button>

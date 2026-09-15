@@ -45,7 +45,7 @@ export function SyncButton() {
   return (
     <Button 
       variant="outline" 
-      className="border-cyan-500/20 hover:bg-cyan-500/10 gap-2"
+      className="border-gray-200 hover:bg-gray-100 text-gray-700 gap-2"
       onClick={handleSync}
       disabled={loading}
     >

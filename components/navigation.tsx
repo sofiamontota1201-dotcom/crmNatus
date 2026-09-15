@@ -13,78 +13,93 @@ import {
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { supabase } from "@/lib/supabase"
+import { getUserPermissions } from "@/lib/permissions"
 import { motion, AnimatePresence } from "framer-motion"
 
-const navigationSections = [
+type NavItem = {
+  name: string
+  href: string
+  icon: React.ComponentType<{ className?: string }>
+  requiredPermission: string | null
+}
+
+type NavSection = {
+  title: string
+  icon: React.ComponentType<{ className?: string }>
+  requiredPermission: string | null
+  items: NavItem[]
+}
+
+const navigationSections: NavSection[] = [
   {
     title: "General",
     icon: LayoutGrid,
     requiredPermission: null,
     items: [
-      { name: "Dashboard", href: "/", icon: Home },
+      { name: "Dashboard", href: "/", icon: Home, requiredPermission: null },
     ]
   },
   {
     title: "Productos & Listas",
     icon: ShoppingBag,
-    requiredPermission: "inventory_view",
+    requiredPermission: null,
     items: [
-      { name: "Productos", href: "/products", icon: Package },
-      { name: "Categorias", href: "/categories", icon: Tag },
-      { name: "Servicios", href: "/services", icon: Zap },
+      { name: "Productos", href: "/products", icon: Package, requiredPermission: "products_view" },
+      { name: "Categorias", href: "/categories", icon: Tag, requiredPermission: "categories_view" },
+      { name: "Servicios", href: "/services", icon: Zap, requiredPermission: "services_view" },
     ]
   },
   {
     title: "Inventario",
     icon: Warehouse,
-    requiredPermission: "inventory_view",
+    requiredPermission: null,
     items: [
-      { name: "Stock General", href: "/stock", icon: Boxes },
+      { name: "Stock General", href: "/stock", icon: Boxes, requiredPermission: "stock_view" },
     ]
   },
   {
     title: "Caja & POS",
     icon: Calculator,
-    requiredPermission: "pos_view",
+    requiredPermission: null,
     items: [
-      { name: "Punto de Venta", href: "/sells", icon: ShoppingCart },
-      { name: "Historial Ventas", href: "/sales-history", icon: History },
-      { name: "Soporte Facturas", href: "/soportes", icon: Receipt },
-      { name: "Facturacion Electronica", href: "/facturacion-electronica", icon: FileText },
+      { name: "Punto de Venta", href: "/sells", icon: ShoppingCart, requiredPermission: "pos_view" },
+      { name: "Historial Ventas", href: "/sales-history", icon: History, requiredPermission: "sales_view" },
+      { name: "Soporte Facturas", href: "/soportes", icon: Receipt, requiredPermission: "soportes_view" },
+      { name: "Facturacion Electronica", href: "/facturacion-electronica", icon: FileText, requiredPermission: "facturacion_view" },
     ]
   },
   {
     title: "CRM & Clientes",
     icon: UserCheck,
-    requiredPermission: "customers_view",
+    requiredPermission: null,
     items: [
-      { name: "Base Clientes", href: "/customers", icon: Users },
+      { name: "Base Clientes", href: "/customers", icon: Users, requiredPermission: "customers_view" },
     ]
   },
   {
     title: "Proveedores & Compras",
     icon: Truck,
-    requiredPermission: "inventory_view",
+    requiredPermission: null,
     items: [
-      { name: "Proveedores", href: "/vendors", icon: Truck },
-      { name: "Cargar Mercancía", href: "/cargar-mercancia", icon: Package },
+      { name: "Proveedores", href: "/vendors", icon: Truck, requiredPermission: "vendors_view" },
+      { name: "Cargar Mercancía", href: "/cargar-mercancia", icon: Package, requiredPermission: "cargar_mercancia_view" },
     ]
   },
   {
     title: "Reportes",
     icon: PieChart,
-    requiredPermission: "reports_view",
+    requiredPermission: null,
     items: [
-      { name: "Gestor de Reportes", href: "/reports", icon: BarChart3 },
+      { name: "Gestor de Reportes", href: "/reports", icon: BarChart3, requiredPermission: "reports_view" },
     ]
   },
   {
     title: "Administracion",
     icon: Shield,
-    requiredPermission: "employees_view",
+    requiredPermission: null,
     items: [
-      { name: "Empleados", href: "/employees", icon: Users },
-      { name: "Roles y Permisos", href: "/roles-permissions", icon: Shield },
+      { name: "Empleados", href: "/employees", icon: Users, requiredPermission: "employees_view" },
+      { name: "Roles y Permisos", href: "/roles-permissions", icon: Shield, requiredPermission: "roles_view" },
     ]
   },
 ]
@@ -100,6 +115,7 @@ export function Navigation() {
     return activeSection ? [activeSection.title] : []
   })
   const [visibleSections, setVisibleSections] = useState<string[]>([])
+  const [visibleItems, setVisibleItems] = useState<NavSection[]>([])
   const [loading, setLoading] = useState(true)
 
   const toggleSection = (title: string) => {
@@ -110,10 +126,44 @@ export function Navigation() {
   }
 
   useEffect(() => {
-    // Mostrar todos los modulos sin verificar permisos
-    const allTitles = navigationSections.map(s => s.title)
-    setVisibleSections(allTitles)
-    setLoading(false)
+    // Visibilidad por SUBMÓDULO: cada ítem del menú tiene su propio permiso.
+    // Se activan/desactivan desde Roles y Permisos → Permisos del rol.
+    const loadVisibility = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+          setVisibleSections([])
+          setLoading(false)
+          return
+        }
+        const perms = await getUserPermissions(supabase, user.id)
+        setVisibleSections(
+          navigationSections
+            .map(s => ({
+              ...s,
+              items: s.items.filter(i => !i.requiredPermission || perms.permissions.includes(i.requiredPermission)),
+            }))
+            .filter(s => s.items.length > 0)
+            .map(s => s.title)
+        )
+        // Guardar los ítems visibles para el render
+        setVisibleItems(
+          navigationSections
+            .map(s => ({
+              ...s,
+              items: s.items.filter(i => !i.requiredPermission || perms.permissions.includes(i.requiredPermission)),
+            }))
+            .filter(s => s.items.length > 0)
+        )
+      } catch {
+        // Fail-closed: sin permisos no se muestra nada
+        setVisibleSections([])
+        setVisibleItems([])
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadVisibility()
   }, [])
 
   useEffect(() => {
@@ -148,7 +198,9 @@ export function Navigation() {
 
   if (!mounted) return null
 
-  const filteredSections = navigationSections.filter(section => visibleSections.includes(section.title))
+  const filteredSections = visibleItems.length > 0
+    ? visibleItems
+    : navigationSections.filter(section => visibleSections.includes(section.title))
 
   return (
     <>

@@ -18,10 +18,10 @@ export async function GET(request: Request) {
       }
     )
 
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const permissions = await getUserPermissions(supabase, session.user.id)
+    const permissions = await getUserPermissions(supabase, user.id)
     if (!hasPermission(permissions, 'employees_create')) {
       return Response.json({ error: 'Forbidden' }, { status: 403 })
     }

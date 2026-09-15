@@ -35,11 +35,6 @@ function sanitizeMessages(messages: any[]): { role: 'user' | 'assistant'; conten
 export async function POST(req: Request) {
     try {
         const apiKey = process.env.NEXT_GROQ_API_KEY?.trim() || '';
-        console.log('--- DEBUG GROQ API KEY ---');
-        console.log('Length:', apiKey.length);
-        console.log('Starts with:', apiKey.substring(0, 8));
-        console.log('Ends with:', apiKey.substring(apiKey.length - 4));
-        console.log('--------------------------');
 
         const openai = new OpenAI({
             apiKey: apiKey,

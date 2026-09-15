@@ -6,17 +6,23 @@ import { getUserPermissions, filterDataByPermissions } from '@/lib/permissions'
 export class SellsRepository {
   constructor(private readonly client: SupabaseClient<any, any, any>) { }
 
-  async list(): Promise<Sell[]> {
+  async list(options?: { from?: string; to?: string; limit?: number }): Promise<Sell[]> {
     const { data: { user } } = await this.client.auth.getUser()
     if (!user) throw new Error('User not authenticated')
 
     // Obtener permisos del usuario
     const permissions = await getUserPermissions(this.client, user.id)
 
-    const { data, error } = await this.client
+    let query = this.client
       .from('sells')
       .select(`*, customers(*)`)
       .order('created_at', { ascending: false })
+
+    // Filtrar por rango de fechas EN LA DB (sell_date es columna date, YYYY-MM-DD)
+    if (options?.from) query = query.gte('sell_date', options.from)
+    if (options?.to) query = query.lte('sell_date', options.to)
+
+    const { data, error } = await query.limit(options?.limit ?? 500)
     if (error) throw error
 
     const sells = (data ?? []).map((row) => toCamelCaseKeys<Sell>(row))

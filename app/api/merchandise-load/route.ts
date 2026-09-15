@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { requireUser } from '@/lib/api-auth'
 
 const adminClient = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -26,6 +27,9 @@ interface CreateLoadRequest {
 }
 
 export async function POST(request: NextRequest) {
+    const auth = await requireUser()
+    if (!auth.ok) return auth.response
+
     try {
         const body: CreateLoadRequest = await request.json()
 
@@ -163,9 +167,14 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+    const auth = await requireUser()
+    if (!auth.ok) return auth.response
+
     try {
         const { searchParams } = new URL(request.url)
         const vendorId = searchParams.get('vendor_id')
+        // Límite defensivo: el historial completo crece sin techo; la UI muestra las últimas cargas
+        const limit = Math.min(Number(searchParams.get('limit')) || 50, 200)
 
         let query = adminClient
             .from('merchandise_loads')
@@ -173,12 +182,12 @@ export async function GET(request: NextRequest) {
                 *,
                 vendors:vendors(name, phone),
                 items:merchandise_load_items(
-                    *,
-                    products:products(product_name, sku, barcode),
-                    stocks:stocks(selling_price, selling_price_2, selling_price_3)
+                    id, product_id, quantity, unit_cost, total_cost,
+                    products:products(product_name, sku, barcode)
                 )
             `)
             .order('id', { ascending: false })
+            .limit(limit)
 
         if (vendorId) {
             query = query.eq('vendor_id', Number(vendorId))
@@ -194,6 +203,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+    const auth = await requireUser()
+    if (!auth.ok) return auth.response
+
     try {
         const body = await request.json()
         const { id, status, notes } = body
@@ -222,6 +234,9 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+    const auth = await requireUser()
+    if (!auth.ok) return auth.response
+
     try {
         const { searchParams } = new URL(request.url)
         const id = searchParams.get('id')

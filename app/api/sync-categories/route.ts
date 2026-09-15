@@ -3,8 +3,15 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import * as XLSX from 'xlsx'
 import path from 'path'
 import fs from 'fs'
+import { requireUser, forbidden } from '@/lib/api-auth'
 
 export async function POST() {
+    const auth = await requireUser()
+    if (!auth.ok) return auth.response
+    if (!['Superadministrador', 'admin'].includes(auth.permissions.role)) {
+        return forbidden('Solo el Superadministrador puede sincronizar categorías')
+    }
+
     try {
         const excelPath = path.join(
             process.env.USERPROFILE || process.env.HOME || '',

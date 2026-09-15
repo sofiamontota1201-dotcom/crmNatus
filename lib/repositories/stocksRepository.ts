@@ -63,34 +63,40 @@ export class StocksRepository {
     return (data ?? []).map((row) => toCamelCaseKeys<Stock>(row))
   }
 
-  // Trae TODOS los productos activos - los que no tienen stock aparecen con currentQuantity 0
-  async listForPOS(): Promise<Stock[]> {
-    const [stocksResult, productsResult] = await Promise.all([
-      this.client
-        .from('stocks')
-        .select(`
-          id, product_code, current_quantity, buying_price, selling_price, selling_price_2, selling_price_3, status, category_id, product_id,
-          products:products(product_name, id)
-        `)
-        .eq('status', 1)
-        .order('id', { ascending: false }),
-      this.client
-        .from('products')
-        .select('id, product_name, category_id, status')
-        .eq('status', 1)
-        .order('product_name')
-    ])
-    if (stocksResult.error) throw stocksResult.error
-    if (productsResult.error) throw productsResult.error
+  // Fase 1 del POS: solo lotes con stock (los vendibles) — render inmediato
+  async listForPOSActive(): Promise<Stock[]> {
+    const { data, error } = await this.client
+      .from('stocks')
+      .select(`
+        id, product_code, current_quantity, buying_price, selling_price, selling_price_2, selling_price_3, status, category_id, product_id,
+        products:products(product_name, id)
+      `)
+      .eq('status', 1)
+      .order('current_quantity', { ascending: false })
 
-    const stocksData = (stocksResult.data ?? []).map((row) => toCamelCaseKeys<Stock>(row))
-    const productsData = productsResult.data ?? []
+    if (error) throw error
 
-    // Track which products already have stock records (by product_id AND by product_name)
-    const stockProductIds = new Set(stocksData.filter((s: any) => s.productId && s.productId > 0).map((s: any) => s.productId))
-    const stockProductNames = new Set(stocksData.map((s: any) => String(s.products?.productName || '').trim().toUpperCase()))
+    const stocksData = (data ?? []).map((row) => toCamelCaseKeys<Stock>(row))
+    // Productos con stock primero (por cantidad), sin-stock al final por nombre
+    stocksData.sort((a: any, b: any) => (b.currentQuantity ?? 0) - (a.currentQuantity ?? 0))
+    return stocksData
+  }
 
-    const productsWithoutStock = productsData
+  // Fase 2 del POS (no bloqueante): productos activos sin ningún lote de stock.
+  // Se muestran con currentQuantity 0 al final del catálogo — visibilidad completa.
+  async listForPOSWithoutStock(existing: Stock[]): Promise<Stock[]> {
+    const { data, error } = await this.client
+      .from('products')
+      .select('id, product_name, category_id, status')
+      .eq('status', 1)
+      .order('product_name')
+
+    if (error) throw error
+
+    const stockProductIds = new Set(existing.filter((s: any) => s.productId && s.productId > 0).map((s: any) => s.productId))
+    const stockProductNames = new Set(existing.map((s: any) => String(s.products?.productName || '').trim().toUpperCase()))
+
+    const productsWithoutStock = (data ?? [])
       .filter((p) => !stockProductIds.has(p.id) && !stockProductNames.has(String(p.product_name || '').trim().toUpperCase()))
       .map((p) => ({
         id: -(p.id),
@@ -109,20 +115,12 @@ export class StocksRepository {
         stockQuantity: 0,
       } as Stock))
 
-    // Sort: products with stock first (by quantity desc), then SIN-STOCK at the bottom
-    const allItems = [...stocksData, ...productsWithoutStock]
-    allItems.sort((a: any, b: any) => {
-      const aQty = a.currentQuantity ?? 0
-      const bQty = b.currentQuantity ?? 0
-      // Both have stock: sort by quantity descending
-      if (aQty > 0 && bQty > 0) return bQty - aQty
-      // One has stock, one doesn't: stock goes first
-      if (aQty > 0 && bQty <= 0) return -1
-      if (aQty <= 0 && bQty > 0) return 1
-      // Both without stock: sort by name
-      return String(a.products?.productName || '').localeCompare(String(b.products?.productName || ''))
+    productsWithoutStock.sort((a: any, b: any) => {
+      const an = String(a.products?.productName || '')
+      const bn = String(b.products?.productName || '')
+      return an < bn ? -1 : an > bn ? 1 : 0
     })
-    return allItems
+    return productsWithoutStock
   }
 
   async create(input: Omit<Stock, 'id' | 'createdAt' | 'updatedAt' | 'products' | 'vendors' | 'categories'>): Promise<Stock> {

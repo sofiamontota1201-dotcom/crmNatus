@@ -118,7 +118,7 @@ export function CreateEmployeeForm({ roles }: CreateEmployeeFormProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Nombre */}
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
             Nombre <span className="text-red-400">*</span>
           </label>
           <input
@@ -127,14 +127,14 @@ export function CreateEmployeeForm({ roles }: CreateEmployeeFormProps) {
             value={formData.first_name}
             onChange={handleChange}
             placeholder="Ej: Juan"
-            className="w-full px-4 py-2 rounded-lg bg-[#0a0c10] border border-white/10 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/50 transition-colors"
+            className="w-full px-4 py-2 rounded-lg bg-white border border-gray-200 text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary/50 transition-colors"
             disabled={loading}
           />
         </div>
 
         {/* Apellido */}
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
             Apellido <span className="text-red-400">*</span>
           </label>
           <input
@@ -143,7 +143,7 @@ export function CreateEmployeeForm({ roles }: CreateEmployeeFormProps) {
             value={formData.last_name}
             onChange={handleChange}
             placeholder="Ej: Pérez"
-            className="w-full px-4 py-2 rounded-lg bg-[#0a0c10] border border-white/10 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/50 transition-colors"
+            className="w-full px-4 py-2 rounded-lg bg-white border border-gray-200 text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary/50 transition-colors"
             disabled={loading}
           />
         </div>
@@ -151,7 +151,7 @@ export function CreateEmployeeForm({ roles }: CreateEmployeeFormProps) {
 
       {/* Email */}
       <div>
-        <label className="block text-sm font-medium text-slate-300 mb-2">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
           Email <span className="text-red-400">*</span>
         </label>
         <input
@@ -160,15 +160,15 @@ export function CreateEmployeeForm({ roles }: CreateEmployeeFormProps) {
           value={formData.email}
           onChange={handleChange}
           placeholder="Ej: juan@empresa.com"
-          className="w-full px-4 py-2 rounded-lg bg-[#0a0c10] border border-white/10 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/50 transition-colors"
+          className="w-full px-4 py-2 rounded-lg bg-white border border-gray-200 text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary/50 transition-colors"
           disabled={loading}
         />
-        <p className="text-xs text-slate-500 mt-1">Este será el usuario para iniciar sesión</p>
+        <p className="text-xs text-gray-500 mt-1">Este será el usuario para iniciar sesión</p>
       </div>
 
       {/* Teléfono */}
       <div>
-        <label className="block text-sm font-medium text-slate-300 mb-2">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
           Teléfono
         </label>
         <input
@@ -177,21 +177,21 @@ export function CreateEmployeeForm({ roles }: CreateEmployeeFormProps) {
           value={formData.phone}
           onChange={handleChange}
           placeholder="Ej: +57 3001234567"
-          className="w-full px-4 py-2 rounded-lg bg-[#0a0c10] border border-white/10 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/50 transition-colors"
+          className="w-full px-4 py-2 rounded-lg bg-white border border-gray-200 text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary/50 transition-colors"
           disabled={loading}
         />
       </div>
 
       {/* Rol */}
       <div>
-        <label className="block text-sm font-medium text-slate-300 mb-2">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
           Rol <span className="text-red-400">*</span>
         </label>
         <select
           name="role_id"
           value={formData.role_id}
           onChange={handleChange}
-          className="w-full px-4 py-2 rounded-lg bg-[#0a0c10] border border-white/10 text-slate-200 focus:outline-none focus:border-cyan-500/50 transition-colors"
+          className="w-full px-4 py-2 rounded-lg bg-white border border-gray-200 text-gray-800 focus:outline-none focus:border-primary/50 transition-colors"
           disabled={loading}
         >
           {roles.map(role => (
@@ -200,22 +200,22 @@ export function CreateEmployeeForm({ roles }: CreateEmployeeFormProps) {
             </option>
           ))}
         </select>
-        <p className="text-xs text-slate-500 mt-1">Determina los permisos y accesos del empleado</p>
+        <p className="text-xs text-gray-500 mt-1">Determina los permisos y accesos del empleado</p>
       </div>
 
       {/* Error */}
       {error && (
-        <div className="flex items-center gap-2 p-4 rounded-lg bg-red-500/10 border border-red-500/20">
-          <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
-          <p className="text-sm text-red-400">{error}</p>
+        <div className="flex items-center gap-2 p-4 rounded-lg bg-red-50 border border-red-200">
+          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+          <p className="text-sm text-red-700">{error}</p>
         </div>
       )}
 
       {/* Success */}
       {success && (
-        <div className="flex items-center gap-2 p-4 rounded-lg bg-green-500/10 border border-green-500/20">
-          <CheckCircle2 className="w-5 h-5 text-green-400 flex-shrink-0" />
-          <p className="text-sm text-green-400">¡Empleado creado exitosamente! Redirigiendo...</p>
+        <div className="flex items-center gap-2 p-4 rounded-lg bg-green-50 border border-green-200">
+          <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+          <p className="text-sm text-green-700">¡Empleado creado exitosamente! Redirigiendo...</p>
         </div>
       )}
 
@@ -224,7 +224,7 @@ export function CreateEmployeeForm({ roles }: CreateEmployeeFormProps) {
         <Button
           type="submit"
           disabled={loading}
-          className="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white gap-2"
+          className="flex-1 bg-primary hover:bg-primary/90 text-white gap-2"
         >
           {loading ? (
             <>
@@ -240,7 +240,7 @@ export function CreateEmployeeForm({ roles }: CreateEmployeeFormProps) {
           variant="outline"
           disabled={loading}
           onClick={() => window.history.back()}
-          className="border-white/10 hover:bg-white/5"
+          className="border-gray-200 hover:bg-gray-100"
         >
           Cancelar
         </Button>

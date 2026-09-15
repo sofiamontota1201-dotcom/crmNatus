@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireUser } from '@/lib/api-auth'
 
 const adminClient = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -7,6 +8,9 @@ const adminClient = createClient(
 )
 
 export async function POST(request: NextRequest) {
+  const auth = await requireUser()
+  if (!auth.ok) return auth.response
+
   try {
     const { updates } = await request.json()
 

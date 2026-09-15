@@ -70,15 +70,19 @@ export default function SalesHistoryPage() {
     const [catalogSearch, setCatalogSearch] = useState("")
     const debouncedCatalogSearch = useDebounce(catalogSearch, 300)
     const [processingSale, setProcessingSale] = useState(false)
+    const [visibleCount, setVisibleCount] = useState(100)
 
     useEffect(() => {
+        setVisibleCount(100)
         fetchSales()
-    }, [])
+    }, [dateFilter, dateRange])
 
-    const fetchSales = async () => {
+    const fetchSales = async (range?: { start: string; end: string }) => {
         setLoading(true)
         try {
-            const data = await sellsRepository.list()
+            const r = range ?? getDateRange()
+            // Filtrar por fecha EN LA DB: solo se traen las ventas del rango visible
+            const data = await sellsRepository.list({ from: r.start, to: r.end })
             setSales(data)
         } catch (error) {
             console.error(error)
@@ -1241,7 +1245,7 @@ export default function SalesHistoryPage() {
                                 <div key={i} className="h-24 w-full bg-gray-100 rounded-2xl animate-pulse" />
                             ))
                         ) : filteredSales.length > 0 ? (
-                            filteredSales.map((sale) => (
+                            filteredSales.slice(0, visibleCount).map((sale) => (
                                 <motion.div
                                     key={sale.id}
                                     initial={{ opacity: 0, y: 10 }}
@@ -1344,6 +1348,17 @@ export default function SalesHistoryPage() {
                             </div>
                         )}
                     </AnimatePresence>
+                    {!loading && filteredSales.length > visibleCount && (
+                        <div className="flex justify-center pb-4">
+                            <Button
+                                variant="outline"
+                                onClick={() => setVisibleCount(prev => prev + 100)}
+                                className="rounded-xl border-gray-200 text-gray-700"
+                            >
+                                Ver más ({filteredSales.length - visibleCount} restantes)
+                            </Button>
+                        </div>
+                    )}
                 </div>
 
                 {/* Details Modal */}

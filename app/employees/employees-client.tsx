@@ -42,9 +42,9 @@ export function EmployeesClient({ employees: initialEmployees, isAdmin }: Employ
   }), [employees, debouncedSearch])
 
   const statusConfig: Record<string, { badge: string; color: string }> = {
-    active: { badge: 'EMPLEADO ACTIVO', color: 'bg-green-500/10 border-green-500/20 text-green-400' },
-    inactive: { badge: 'INACTIVO', color: 'bg-gray-500/10 border-gray-500/20 text-gray-400' },
-    suspended: { badge: 'SUSPENDIDO', color: 'bg-red-500/10 border-red-500/20 text-red-400' },
+    active: { badge: 'EMPLEADO ACTIVO', color: 'bg-green-50 border-green-200 text-green-700' },
+    inactive: { badge: 'INACTIVO', color: 'bg-gray-100 border-gray-200 text-gray-600' },
+    suspended: { badge: 'SUSPENDIDO', color: 'bg-red-50 border-red-200 text-red-700' },
   }
 
   return (
@@ -58,7 +58,7 @@ export function EmployeesClient({ employees: initialEmployees, isAdmin }: Employ
             <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600">
               Gestión de Empleados
             </h1>
-            <p className="text-gray-400 mt-1">Administra tu equipo de trabajo</p>
+            <p className="text-gray-600 mt-1">Administra tu equipo de trabajo</p>
           </div>
           <div className="flex gap-2">
             {isAdmin && (
@@ -91,8 +91,8 @@ export function EmployeesClient({ employees: initialEmployees, isAdmin }: Employ
           <CardContent className="p-0">
             {filteredEmployees.length === 0 ? (
               <div className="p-12 text-center">
-                <Users className="w-12 h-12 text-gray-500 mx-auto mb-4 opacity-50" />
-                <p className="text-gray-400">No hay empleados registrados</p>
+                <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">No hay empleados registrados</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -121,12 +121,12 @@ export function EmployeesClient({ employees: initialEmployees, isAdmin }: Employ
                           <td className="px-6 py-4">
                             <div>
                               <p className="font-semibold text-gray-900">{employee.first_name}</p>
-                              <p className="text-sm text-gray-400">{employee.last_name}</p>
+                              <p className="text-sm text-gray-600">{employee.last_name}</p>
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-gray-300">{employee.email}</td>
-                          <td className="px-6 py-4 text-gray-300">{employee.cedula || '-'}</td>
-                          <td className="px-6 py-4 text-gray-300">{employee.phone || '-'}</td>
+                          <td className="px-6 py-4 text-gray-700">{employee.email}</td>
+                          <td className="px-6 py-4 text-gray-700">{employee.cedula || '-'}</td>
+                          <td className="px-6 py-4 text-gray-700">{employee.phone || '-'}</td>
                           <td className="px-6 py-4">
                             <Badge className="bg-primary/10 border-primary/20 text-primary hover:bg-primary/20">
                               {employee.roles?.role_name || 'Sin rol'}

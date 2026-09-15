@@ -22,10 +22,10 @@ export async function GET(
       }
     )
 
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const permissions = await getUserPermissions(supabase, session.user.id)
+    const permissions = await getUserPermissions(supabase, user.id)
     if (!hasPermission(permissions, 'employees_view')) {
       return Response.json({ error: 'Forbidden' }, { status: 403 })
     }
@@ -74,10 +74,10 @@ export async function PATCH(
       }
     )
 
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const permissions = await getUserPermissions(supabase, session.user.id)
+    const permissions = await getUserPermissions(supabase, user.id)
     if (!hasPermission(permissions, 'employees_edit')) {
       return Response.json({ error: 'Forbidden' }, { status: 403 })
     }
@@ -108,7 +108,7 @@ export async function PATCH(
 
     // Registrar en auditoría
     await supabase.from('audit_logs').insert([{
-      user_id: session.user.id,
+      user_id: user.id,
       action: 'UPDATE',
       entity_type: 'employee',
       entity_id: parseInt(id),
@@ -148,10 +148,10 @@ export async function DELETE(
       }
     )
 
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const permissions = await getUserPermissions(supabase, session.user.id)
+    const permissions = await getUserPermissions(supabase, user.id)
     if (!hasPermission(permissions, 'employees_delete')) {
       return Response.json({ error: 'Forbidden' }, { status: 403 })
     }
@@ -171,7 +171,7 @@ export async function DELETE(
 
     // Registrar en auditoría
     await supabase.from('audit_logs').insert([{
-      user_id: session.user.id,
+      user_id: user.id,
       action: 'DELETE',
       entity_type: 'employee',
       entity_id: parseInt(id),

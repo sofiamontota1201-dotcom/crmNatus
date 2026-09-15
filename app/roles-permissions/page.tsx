@@ -23,15 +23,16 @@ async function getRolesAndPermissions() {
     }
   )
 
-  const { data: { session } } = await sb.auth.getSession()
-  if (!session) redirect("/login")
+  const { data: { user } } = await sb.auth.getUser()
+  if (!user) redirect("/login")
 
-  const permissions = await getUserPermissions(sb, session.user.id)
+  const permissions = await getUserPermissions(sb, user.id)
 
   // Permitir acceso si es admin
-  const isAllowed = 
+  const isAllowed =
     permissions.role === 'Superadministrador' ||
     permissions.role === 'Gerente' ||
+    permissions.role === 'admin' ||
     hasPermission(permissions, 'roles_view')
 
   if (!isAllowed) {
@@ -42,14 +43,18 @@ async function getRolesAndPermissions() {
   const { data: allRoles } = await sb.from('roles').select('*').order('role_name')
 
   // Filtrar roles según el nivel del usuario actual
+  const privilegedRoles = ['Superadministrador', 'Gerente', 'admin']
+  const isPrivileged = privilegedRoles.includes(permissions.role)
   let visibleRoles = allRoles || []
-  
-  if (permissions.role === 'Vendedor') {
-    visibleRoles = visibleRoles.filter(r => r.role_name === 'Vendedor')
-  } else if (permissions.role === 'Controlador') {
-    visibleRoles = visibleRoles.filter(r => r.role_name === 'Controlador')
-  } else if (permissions.role === 'Gerente') {
-    visibleRoles = visibleRoles.filter(r => r.role_name !== 'Superadministrador')
+
+  if (!isPrivileged) {
+    if (permissions.role === 'Vendedor' || permissions.role === 'vendedor') {
+      visibleRoles = visibleRoles.filter(r => r.role_name === 'Vendedor' || r.role_name === 'vendedor')
+    } else if (permissions.role === 'Controlador') {
+      visibleRoles = visibleRoles.filter(r => r.role_name === 'Controlador')
+    } else if (permissions.role === 'bodeguero') {
+      visibleRoles = visibleRoles.filter(r => r.role_name === 'bodeguero')
+    }
   }
 
   // Obtener empleados con sus roles
@@ -66,9 +71,9 @@ async function getRolesAndPermissions() {
     .eq('status', 'active')
     .order('created_at', { ascending: false })
 
-  // Filtrar empleados si no es Superadministrador o Gerente
+  // Filtrar empleados si no es un rol privilegiado
   let visibleEmployees = employees || []
-  if (permissions.role !== 'Superadministrador' && permissions.role !== 'Gerente') {
+  if (!isPrivileged) {
     visibleEmployees = visibleEmployees.filter(e => e.role_id === (allRoles?.find(r => r.role_name === permissions.role)?.id))
   }
 
@@ -88,16 +93,16 @@ export default async function RolesPermissionsPage() {
     <div className="flex h-screen bg-background text-foreground overflow-hidden">
       <Navigation />
       
-      <main className="flex-1 p-4 md:p-8 transition-all duration-300 overflow-y-auto scrollbar-thin text-white">
+      <main className="flex-1 p-4 md:p-8 transition-all duration-300 overflow-y-auto scrollbar-thin text-gray-900">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
+            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600">
               Gestión de Roles y Permisos
             </h1>
-            <p className="text-gray-400 mt-1">
-              {userRole === 'Superadministrador' 
-                ? 'Tienes acceso a todos los roles' 
+            <p className="text-gray-600 mt-1">
+              {userRole === 'Superadministrador'
+                ? 'Tienes acceso a todos los roles'
                 : userRole === 'Gerente'
                 ? 'Puedes gestionar todos excepto Superadministrador'
                 : `Solo puedes ver empleados con rol ${userRole}`

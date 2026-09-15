@@ -1,10 +1,13 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { getUserPermissions, hasPermission } from '@/lib/permissions'
 import { createClient } from '@supabase/supabase-js'
+import { requireUser } from '@/lib/api-auth'
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireUser('employees_create')
+    if (!auth.ok) return auth.response
+
     const cookieStore = await cookies()
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,14 +21,6 @@ export async function POST(request: Request) {
         },
       }
     )
-
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-
-    const permissions = await getUserPermissions(supabase, session.user.id)
-    if (!hasPermission(permissions, 'employees_create')) {
-      return Response.json({ error: 'Forbidden' }, { status: 403 })
-    }
 
     const body = await request.json()
     const { email, first_name, last_name, employee_id } = body

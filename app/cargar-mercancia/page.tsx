@@ -128,7 +128,7 @@ export default function CargarMercanciaPage() {
                 `).eq('status', 1).order('product_name'),
                 supabase.from('vendors').select('id, name').order('name'),
                 supabase.from('categories').select('id, name').eq('status', 1).order('name'),
-                fetch('/api/merchandise-load').then(r => r.ok ? r.json() : []).catch(() => []),
+                fetch('/api/merchandise-load?limit=50').then(r => r.ok ? r.json() : []).catch(() => []),
             ])
 
             if (productsRes.data) {
@@ -160,7 +160,7 @@ export default function CargarMercanciaPage() {
 
             if (vendorsRes.data) setVendors(vendorsRes.data.map((v: any) => toCamelCaseKeys(v)) as any)
             if (categoriesRes.data) setCategories(categoriesRes.data as any)
-            if (Array.isArray(historyRes)) setHistory(historyRes.map((h: any) => toCamelCaseKeys(h)).slice(0, 50))
+            if (Array.isArray(historyRes)) setHistory(historyRes.map((h: any) => toCamelCaseKeys(h)))
         } catch (e) {
             console.error(e)
         } finally {

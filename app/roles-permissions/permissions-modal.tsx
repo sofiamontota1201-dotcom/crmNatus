@@ -51,9 +51,7 @@ export function PermissionsModal({ roleId, roleName, onClose, onSave }: Permissi
   const fetchPermissions = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/debug/verify-permissions`)
-      const data = await response.json()
-      
+
       // Fetch all permissions
       const permsResponse = await fetch(`/api/roles/${roleId}/permissions`)
       const permsData = await permsResponse.json()
@@ -90,6 +88,14 @@ export function PermissionsModal({ roleId, roleName, onClose, onSave }: Permissi
         { id: 28, name: 'permissions_view', module: 'permissions', action: 'view', description: 'Ver permisos' },
         { id: 29, name: 'permissions_assign', module: 'permissions', action: 'edit', description: 'Asignar permisos a roles' },
         { id: 30, name: 'reports_view', module: 'reports', action: 'view', description: 'Ver reportes' },
+        { id: 31, name: 'products_view', module: 'inventory', action: 'view', description: 'Ver módulo Productos' },
+        { id: 32, name: 'categories_view', module: 'inventory', action: 'view', description: 'Ver módulo Categorias' },
+        { id: 33, name: 'services_view', module: 'inventory', action: 'view', description: 'Ver módulo Servicios' },
+        { id: 34, name: 'stock_view', module: 'inventory', action: 'view', description: 'Ver módulo Stock General' },
+        { id: 35, name: 'vendors_view', module: 'inventory', action: 'view', description: 'Ver módulo Proveedores' },
+        { id: 36, name: 'cargar_mercancia_view', module: 'inventory', action: 'view', description: 'Ver módulo Cargar Mercancía' },
+        { id: 37, name: 'soportes_view', module: 'sales', action: 'view', description: 'Ver módulo Soporte Facturas' },
+        { id: 38, name: 'facturacion_view', module: 'sales', action: 'view', description: 'Ver módulo Facturación Electrónica' },
       ])
       
       setAssignedPermissions(permsData.assigned || [])
@@ -153,19 +159,19 @@ export function PermissionsModal({ roleId, roleName, onClose, onSave }: Permissi
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto">
-      <div className="glass-panel border border-white/10 rounded-2xl max-w-4xl w-full bg-black/40 my-8">
+      <div className="border border-gray-200 rounded-2xl max-w-4xl w-full bg-white my-8 shadow-xl">
         {/* Header */}
-        <div className="flex justify-between items-center p-8 border-b border-white/5">
+        <div className="flex justify-between items-center p-8 border-b border-gray-100">
           <div>
-            <h2 className="text-2xl font-bold text-white">Permisos del Rol</h2>
-            <p className="text-sm text-gray-400 mt-1">{roleName}</p>
+            <h2 className="text-2xl font-bold text-gray-900">Permisos del Rol</h2>
+            <p className="text-sm text-gray-500 mt-1">{roleName}</p>
           </div>
           <button
             onClick={onClose}
             disabled={saving}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            <X className="w-5 h-5 text-gray-400" />
+            <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
 
@@ -179,12 +185,12 @@ export function PermissionsModal({ roleId, roleName, onClose, onSave }: Permissi
             <div className="space-y-6 max-h-96 overflow-y-auto scrollbar-thin">
               {modules.map(module => (
                 <div key={module} className="space-y-3">
-                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                     {moduleIcons[module]} {module.charAt(0).toUpperCase() + module.slice(1)}
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-4">
                     {permissionsByModule[module].map(perm => (
-                      <label key={perm.id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-white/[0.03] transition-colors cursor-pointer group">
+                      <label key={perm.id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer group">
                         <Checkbox
                           checked={assignedPermissions.includes(perm.id)}
                           onCheckedChange={() => handlePermissionToggle(perm.id)}
@@ -192,7 +198,7 @@ export function PermissionsModal({ roleId, roleName, onClose, onSave }: Permissi
                           className="mt-1"
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-200 group-hover:text-white">
+                          <p className="text-sm font-medium text-gray-800 group-hover:text-gray-900">
                             {perm.action.charAt(0).toUpperCase() + perm.action.slice(1)}
                           </p>
                           <p className="text-xs text-gray-500">{perm.description}</p>
@@ -207,7 +213,7 @@ export function PermissionsModal({ roleId, roleName, onClose, onSave }: Permissi
         </div>
 
         {/* Footer */}
-        <div className="flex gap-3 p-8 border-t border-white/5 bg-black/20">
+        <div className="flex gap-3 p-8 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
           <Button
             onClick={handleSave}
             disabled={saving || loading}
@@ -226,7 +232,7 @@ export function PermissionsModal({ roleId, roleName, onClose, onSave }: Permissi
             onClick={onClose}
             disabled={saving}
             variant="outline"
-            className="border-white/10 hover:bg-white/5 text-gray-300"
+            className="border-gray-200 hover:bg-gray-100 text-gray-700"
           >
             Cancelar
           </Button>
