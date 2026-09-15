@@ -154,6 +154,13 @@ export default function SalesHistoryPage() {
         }))
     }
 
+    const updateCartItemPrice = (stockId: string, newPrice: number) => {
+        const validPrice = Math.max(0, newPrice)
+        setNewSaleItems(prev => prev.map(item =>
+            item.stockId !== stockId ? item : { ...item, price: validPrice, total: validPrice * item.quantity }
+        ))
+    }
+
     const removeCartItem = (stockId: string) => {
         setNewSaleItems(prev => prev.filter(item => item.stockId !== stockId))
     }
@@ -1758,7 +1765,17 @@ export default function SalesHistoryPage() {
                                             <div key={item.stockId} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-sm font-bold text-gray-800 truncate">{item.productName}</p>
-                                                    <p className="text-[10px] text-gray-500">${item.price.toLocaleString()} x unidad</p>
+                                                    <div className="flex items-center gap-1 mt-0.5">
+                                                        <span className="text-[10px] text-gray-500">$</span>
+                                                        <Input
+                                                            type="number"
+                                                            min={0}
+                                                            className="w-20 h-6 bg-white border-gray-200 text-[10px] px-1"
+                                                            value={item.price}
+                                                            onChange={(e) => updateCartItemPrice(item.stockId, parseFloat(e.target.value) || 0)}
+                                                        />
+                                                        <span className="text-[10px] text-gray-500">x unidad</span>
+                                                    </div>
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <button
